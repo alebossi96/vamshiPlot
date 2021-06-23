@@ -50,7 +50,7 @@ class latex:
 			self.includeGraphics(toPlot[0])
 		else:
 			i = 0
-			for plot in totPlot:
+			for plot in toPlot:
 				i+=1
 				self.addSubFigure(plot, i%2)
 				
