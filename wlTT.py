@@ -48,11 +48,11 @@ class wavelengthTroughTime:
 			wavenumber[i] = (1/self.wl_0-1/lmd[i])*1e7
 		return(lmd, wavenumber)
 
+if __name__ == "__main__":
+	meas = wavelengthTroughTime("2106/m4.sdt","2106/rayleigh.sdt",1000)
 
-meas = wavelengthTroughTime("2106/m4.sdt","2106/rayleigh.sdt",1000)
 
-
-(lmd,wn) = meas.calibration()
-plt.plot(wn[1700:2600], meas.data[1700:2600])
-plt.savefig("test.jpg")
-plt.close()
+	(lmd,wn) = meas.calibration()
+	plt.plot(wn[1700:2600], meas.data[1700:2600])
+	plt.savefig("test.jpg")
+	plt.close()
