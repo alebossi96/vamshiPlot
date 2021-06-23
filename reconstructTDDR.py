@@ -7,7 +7,7 @@ from scipy.sparse.linalg import lsmr
 from scipy.linalg import hadamard
 from transformMatrix import transformMatrix
 from hadamardOrdering import cake_cutting
-
+from latex import latex
 
 def readSdt(fileName, numBanks):
 	data = []
@@ -28,6 +28,7 @@ def readSdt(fileName, numBanks):
 		for j in range(batch):
 			data.append(sdt.data[0][ j,:])
 	return (time,data)
+
 def plotData(time, data, name):
 	plt.pcolormesh(data[1:,1400:1800])
 	plt.xlabel("time gate [a.u.]")
@@ -62,63 +63,83 @@ def plotData(time, data, name):
 	plt.xlabel("time gate [a.u]")
 	
 	plt.savefig(name+"lines.jpg")
-def accumulate(data, nBasis):
-	tot = np.zeros((nBasis,4096))
-	i = 0
-	for el in data:
-		idx = i%nBasis		
-		tot[idx,:]+= el
-		i+=1
-	return tot
+	plt.close()
+class reconstructTDDR:
+	def __init__(self,fileName,nBanks,nBasis,nMeas, rastOrHad, lambda_0):
+		self.nBanks =nBanks
+		self.nBasis = nBasis
+		self.nMeas = nMeas
+		(self.time,self.data) = readSdt(fileName,self.nBanks);
+		self.rastOrHad=rastOrHad
+		self.nPoints = 4096
+		self.lambda_0 = lambda_0
+		self.calibrationToWl()
+		self.calibrateToWn()
+		self.execute()
+		
+	def calibrationToWl(self):
+		p = np.array([  1.51491966* 64/self.nBasis, 809.28844682])
+		self.wavelength=np.zeros(self.nBasis)
+		for i in range(self.nBasis):
+			self.wavelength[i]=i*p[0]+p[1]
+	def calibrateToWn(self):
+		self.wn=np.zeros(self.nBasis)
+		for i in range(self.nBasis):
+			self.wn[i]=(1/self.lambda_0-1/self.wavelength[i])*1e7
+	def execute(self):
+		self.accumulate()
+		if self.rastOrHad == "Had":
+			self.reconstructHadamard()
+			
+	def accumulate(self):
+		self.tot = np.zeros((self.nBasis,self.nPoints ))
+		i = 0
+		for el in self.data:
+			idx = i%self.nBasis		
+			self.tot[idx,:]+= el
+			i+=1
+		return
 
 #va considerato che sono 1 e -1
 
-def reconstructHadamard(data, nBasis):
-	dataNp = np.zeros((nBasis,4096)) #non nMeas perchè voglio dim uguali per la ricostruzione. Impongo però basi non misurate a 0
- 
-	i = 0
-	for el in data:
-		dataNp[i,:] = el 
-		i+=1 
-	H = 0.5*(cake_cutting(nBasis) + np.ones((nBasis, nBasis)))
-	#data è 2D
+	def reconstructHadamard(self):
+		dataNp = np.zeros((self.nBasis,self.nPoints )) #non nMeas perchè voglio dim uguali per la ricostruzione. Impongo però basi non misurate a 0
+	 
+		i = 0
+		for el in self.tot:
+			dataNp[i,:] = el 
+			i+=1 
+		H = 0.5*(cake_cutting(self.nBasis) + np.ones((self.nBasis, self.nBasis)))
+		#data è 2D
 
-	recons = np.zeros((nBasis,4096))   
-	for i in range(4096):
-		recons[:,i] = lsmr(H,dataNp[:,i])[0] #spero ordine corretto
-	return recons
+		self.recons = np.zeros((nBasis,self.nPoints ))   
+		for i in range(self.nPoints ):
+			self.recons[:,i] = lsmr(H,dataNp[:,i])[0] #spero ordine corretto
 
-def convertToHad(data,nBasis):
-	H = 0.5*(hadamard(nBasis) + np.ones((nBasis, nBasis)))
-	#out = np.zeros((nBasis,4096))
-	out = np.matmul(H,data)
-	return out
-		
+	
+
 
 """
-np.set_printoptions(threshold=np.inf)
-H=cake_cutting(32) 
+mancano calibrazioni
 """
-		
-nBanks =40
-nBasis = 64
-nMeas = 64
-name = "0406/m9"
-(time,data) = readSdt(name,nBanks);
+if __name__=="__main__":
+	print("test")	
+	nBanks =40
+	nBasis = 64
+	nMeas = 64
+	fileName = "0406/m9"
+	lambda_0=780
+	test = reconstructTDDR(fileName,nBanks,nBasis,nMeas, "Had", lambda_0)
+	
+	lat = latex("test")
+	plot = []
+	print(test.time.shape)
+	print(test.wn.shape)
+	print(test.recons.shape)
+	name = lat.plotData2D(test.time,test.wn,test.recons,"time","ns","wavenumber","$cm^{-1}$","reconstruct m9","m9" )
+	plot.append(name)
+	lat.newFigure(plot, "m9")
 
-tot = accumulate(data,nMeas)
-
-#had = convertToHad(tot,nBasis)
-tot =reconstructHadamard(tot,nBasis)
-
-dim = tot.shape
-for i in range(dim[0]):
-	for j in range(dim[1]):	
-		if(tot[i][j]<0):
-			tot[i][j] = 0
-res = sum(sum(tot))
-print(res)		
-plotData(time, tot,name)
 
 
 

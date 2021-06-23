@@ -23,7 +23,15 @@ class latex:
 		plt.savefig(saveas+"."+self.ext)
 		plt.close()
 		return saveas
-
+	def plotData2D(self, x,y,data,x_label,x_um,y_label,y_um,plot_title,saveas ):
+		plt.rcParams['pcolor.shading'] ='nearest'
+		plt.pcolormesh(x, y,data)
+		plt.xlabel( x_label+" ["+x_um+"]")
+		plt.ylabel(y_label+ "["+y_um+"]")
+		plt.title(plot_title)
+		plt.savefig(saveas+"."+self.ext)
+		plt.close()
+		return saveas
 	def addSubFigure(self,name, newline):
 		self.f.write("\\begin{subfigure}{.5\\textwidth}\n")
 		self.includeGraphics(name)
