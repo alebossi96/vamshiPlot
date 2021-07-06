@@ -38,5 +38,4 @@ def cake_cutting(n):
 	H1= 2*H1 -1
 	return H1
 
-cake_cutting(128)
 

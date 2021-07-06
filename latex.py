@@ -1,4 +1,4 @@
-from wlTT import wavelengthTroughTime
+
 import matplotlib.pyplot as plt
 class latex:
 	def __init__(self, filename):
@@ -7,7 +7,7 @@ class latex:
 		self.f.write("\\documentclass{report}\n")
 		self.f.write("\\usepackage{graphicx}\n")
 		self.f.write("\\usepackage{subcaption}\n")
-		self.f.write("\\usepackage[section]{placeins}")
+		self.f.write("\\usepackage[section]{placeins}\n")
 		self.f.write("\\begin{document}\n")
 	def __del__(self):
 		self.f.write("\\end{document}\n")
@@ -54,15 +54,15 @@ class latex:
 				i+=1
 				self.addSubFigure(plot, i%2)
 				
-		self.f.write("\caption{"+caption+"}")
+		self.f.write("\n \caption{"+caption+"}\n\n")
 		self.f.write("\\end{figure}\n")	
 		
 if __name__ == "__main__":
-
+	
 	test = latex("test")
 
 	folder = "2303/300m/"
-
+	from wlTT import wavelengthTroughTime
 	plot = []
 	meas = wavelengthTroughTime(folder+"CaCO/CaCO_300Mono_3600sGain12.sdt",folder+"CaCO/Raleigh.sdt",785)
 	name = test.plotData(meas.time,meas.data,"time of arrival", "ns","histogram",0, "test1" )

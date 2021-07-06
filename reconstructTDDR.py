@@ -5,9 +5,8 @@ import matplotlib as mpl
 from PIL import Image
 from scipy.sparse.linalg import lsmr
 from scipy.linalg import hadamard
-from transformMatrix import transformMatrix
-from hadamardOrdering import cake_cutting
-from latex import latex
+import librerieTesi.hadamardOrdering as hadamardOrdering
+
 
 def readSdt(fileName, numBanks):
 	data = []
@@ -29,41 +28,6 @@ def readSdt(fileName, numBanks):
 			data.append(sdt.data[0][ j,:])
 	return (time,data)
 
-def plotData(time, data, name):
-	plt.pcolormesh(data[1:,1400:1800])
-	plt.xlabel("time gate [a.u.]")
-	plt.ylabel("wavelenght [a.u.]")
-	plt.savefig(name+"_v2.jpg")
-	plt.close()
-	plt.subplot(5,1,1)
-	plt.plot(data[1:,1500])
-	plt.subplot(5,1,2)
-	plt.plot(data[1:,1550])
-	plt.subplot(5,1,3)
-	plt.plot(data[1:,1600])
-	plt.ylabel("time gates")
-	plt.subplot(5,1,4)
-	plt.plot(data[1:,1650])
-	plt.subplot(5,1,5)
-	plt.plot(data[1:,1700])
-	plt.xlabel("DMD line")
-	plt.savefig(name+"tg.jpg")
-	plt.close()
-	plt.subplot(5,1,1)
-	plt.plot(data[25,1400:1800])
-	plt.subplot(5,1,2)
-	plt.plot(data[26,1400:1800])
-	plt.subplot(5,1,3)
-	plt.plot(data[27,1400:1800])
-	plt.ylabel("DMD lines")
-	plt.subplot(5,1,4)
-	plt.plot(data[28,1400:1800])
-	plt.subplot(5,1,5)
-	plt.plot(data[29,1400:1800])
-	plt.xlabel("time gate [a.u]")
-	
-	plt.savefig(name+"lines.jpg")
-	plt.close()
 class reconstructTDDR:
 	def __init__(self,fileName,nBanks,nBasis,nMeas, rastOrHad, lambda_0):
 		self.nBanks =nBanks
@@ -72,10 +36,12 @@ class reconstructTDDR:
 		(self.time,self.data) = readSdt(fileName,self.nBanks);
 		self.rastOrHad=rastOrHad
 		self.nPoints = 4096
+		self.rmv = False
 		self.lambda_0 = lambda_0
 		self.calibrationToWl()
 		self.calibrateToWn()
 		self.execute()
+		
 		
 	def calibrationToWl(self):
 		p = np.array([  1.51491966* 64/self.nBasis, 809.28844682])
@@ -100,7 +66,7 @@ class reconstructTDDR:
 			i+=1
 		return
 
-#va considerato che sono 1 e -1
+	#va considerato che sono 1 e -1 le basi di Hadamard e io uso 1 e 0
 
 	def reconstructHadamard(self):
 		dataNp = np.zeros((self.nBasis,self.nPoints )) #non nMeas perchè voglio dim uguali per la ricostruzione. Impongo però basi non misurate a 0
@@ -109,16 +75,28 @@ class reconstructTDDR:
 		for el in self.tot:
 			dataNp[i,:] = el 
 			i+=1 
-		H = 0.5*(cake_cutting(self.nBasis) + np.ones((self.nBasis, self.nBasis)))
+		H = 0.5*(hadamardOrdering.cake_cutting(self.nBasis) + np.ones((self.nBasis, self.nBasis)))
 		#data è 2D
 
 		self.recons = np.zeros((nBasis,self.nPoints ))   
 		for i in range(self.nPoints ):
 			self.recons[:,i] = lsmr(H,dataNp[:,i])[0] #spero ordine corretto
-
-	
-
-
+		
+	def wlAtTimeGate(self, tGate):
+		idx = np.where(self.time == tGate)
+		return self.recons[:,idx]
+	def line(self, idx):
+		return self.recons[idx,:]
+	def removeFirstLine(self, rmv):
+		self.rmv = rmv
+	def wavenumber(self):
+		if self.rmv:
+			return self.wn[1:]
+		return self.wn
+	def reconstruction(self):
+		if self.rmv:
+			return self.recons[1:,:]
+		return self.recons
 """
 mancano calibrazioni
 """
@@ -130,18 +108,26 @@ if __name__=="__main__":
 	fileName = "0406/m9"
 	lambda_0=780
 	test = reconstructTDDR(fileName,nBanks,nBasis,nMeas, "Had", lambda_0)
-	
+	from latex import latex
 	lat = latex("test")
 	plot = []
-	print(test.time.shape)
-	print(test.wn.shape)
-	print(test.recons.shape)
-	name = lat.plotData2D(test.time,test.wn,test.recons,"time","ns","wavenumber","$cm^{-1}$","reconstruct m9","m9" )
+	
+	name = lat.plotData2D(test.time,test.wavenumber(),test.reconstruction(),"time","ns","wavenumber","$cm^{-1}$","reconstruct m9","m9" )
+	plot.append(name)
+	name = lat.plotData2D(test.time,test.wavenumber(),test.reconstruction(),"time","ns","wavenumber","$cm^{-1}$","reconstruct m9","m9" )
+	plot.append(name)
+	name = lat.plotData2D(test.time,test.wavenumber(),test.reconstruction(),"time","ns","wavenumber","$cm^{-1}$","reconstruct m9","m9" )
+	plot.append(name)
+	name = lat.plotData2D(test.time,test.wavenumber(),test.reconstruction(),"time","ns","wavenumber","$cm^{-1}$","reconstruct m9","m9" )
+	plot.append(name)
+	name = lat.plotData2D(test.time,test.wavenumber(),test.reconstruction(),"time","ns","wavenumber","$cm^{-1}$","reconstruct m9","m9" )
 	plot.append(name)
 	lat.newFigure(plot, "m9")
 
 
-
+"""
+devo ancora fare il plot nel caso in cui voglio stampare solo time gate oppure solo linee
+"""
 
 
 

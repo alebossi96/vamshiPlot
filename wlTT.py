@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pynverse import inversefunc
 from scipy.optimize import fsolve
-
+from scipy.signal import peak_widths
 def readSdt(fileName):
 	sdt = sdtfile.SdtFile(fileName)
 	data = np.zeros((len(sdt.times[0]),2))
@@ -14,19 +14,21 @@ def readSdt(fileName):
 
 class wavelengthTroughTime:
 	
-	def timeRayleigh(self,filename):
-		data = readSdt(filename)
+	def timeRayleigh(self):
+		data = readSdt(self.fileRay)
 		Post0 = np.where(data[:,1] == np.amax(data[:,1]))[0][0]
 		t0 = data[Post0,0]
-		return t0
+		return (Post0,t0)
 
 	def __init__(self, filename, fileRayleigh, wl_0):
 		self.filename = filename
 		data = readSdt(filename)
 		self.data = data[:,1]
 		self.time = data[:,0]
-		self.timeRay= self.timeRayleigh(fileRayleigh)
+		self.fileRay = fileRayleigh
+		self.timeRay= self.timeRayleigh()[1]
 		self.wl_0 = wl_0
+		
 
 
 
@@ -48,6 +50,15 @@ class wavelengthTroughTime:
 			wavenumber[i] = (1/self.wl_0-1/lmd[i])*1e7
 		return(lmd, wavenumber)
 
+	def fwhmResolution(self):
+		data = readSdt(self.fileRay)[:,1]
+		pos0= self.timeRayleigh()[0]
+		fwhm_idx = peak_widths(data, pos0)[0]
+		(lmd,wn) = self.calibration()
+		fwhmWL= lmd[pos0-fwhm_idx]-lmd[pos0+fwhm_idx]
+		fwhmWn = wn[pos0-fwhm_idx]-wn[pos0+fwhm_idx]
+		return(fwhmWL,fwhmWn)
+		
 if __name__ == "__main__":
 	meas = wavelengthTroughTime("2106/m4.sdt","2106/rayleigh.sdt",1000)
 
