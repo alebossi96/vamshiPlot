@@ -9,6 +9,7 @@ import librerieTesi.hadamardOrdering as hadamardOrdering
 from sklearn import linear_model
 from scipy.signal import peak_widths
 import sys
+import copy
 RAST = "rast"
 
 HAD = "had"
@@ -30,10 +31,13 @@ class ridgeTime:
 			
 """
 class f_tT_:
-	def __init__(self,fileName,nBanks,nBasis,nMeas, compress = True):
+	def __init__(self,fileName,nBanks,nBasis, nMeas = -1, compress = True):
 		self.nBanks =nBanks
 		self.nBasis = nBasis
-		self.nMeas = nMeas
+		if nMeas == -1: # se non specificato è uguale a nBasis, (caso compressioni)
+			self.nMeas = nBasis
+		else:
+			self.nMeas = nMeas
 		(self.time,self.data) = self.readSdt(fileName);
 		
 		self.compress = compress
@@ -63,6 +67,7 @@ class f_tT_:
 		return (time,data)
 	def accumulate(self):
 		self.tot = np.zeros((self.dim(),nPoints ))
+		
 		i = 0
 		for el in self.data:
 			if self.compress:
@@ -86,10 +91,15 @@ class f_tT_:
 	def dim(self):
 		if self.compress:
 			return self.nBasis
-		return self.nMeas
+		return len(self.data)#ho copiato tutto, cambio solo tot
 	def getTime(self):
 		return self.time
-			
+	def divideInSlice(self,i0,iF):
+		new = copy.copy(self)
+		new.nMeas = iF-i0
+		new.data = self.data[i0:iF]
+		new.tot =self.tot[i0:iF,:]
+		return new
 			
 class reconstructTDDR:
 	def __init__(self,data, rastOrHad, lambda_0 ,method="lsmr", Alpha=0, removeFirstLine = True):
@@ -98,7 +108,10 @@ class reconstructTDDR:
 		self.rastOrHad = rastOrHad
 		self.lambda_0 = lambda_0
 		self.method = method
-		self.removeFirstLine = removeFirstLine
+		if rastOrHad == RAST:
+			self.removeFirstLine = False
+		else:
+			self.removeFirstLine = removeFirstLine
 		self.nBasis = self.data.getnBasis()
 		if  rastOrHad != RAST and rastOrHad != HAD:
 			sys.exit("It must be raster or HAD")
@@ -126,6 +139,7 @@ class reconstructTDDR:
 		if self.data.getIsCompress():
 			return H
 		matrix = np.zeros((self.sz, self.nBasis))
+		
 		for i in range(self.sz):
 			matrix[i,:]= H[i%self.nBasis,:]
 		return matrix
@@ -133,27 +147,35 @@ class reconstructTDDR:
 
 		if self.rastOrHad == HAD:
 			self.reconstructHadamard()
-		elif rastOrHad == RAST:
-			self.recons = self.data.data()
+		elif self.rastOrHad == RAST:
+			self.recons = self.data.getData()
 		else:
 			sys.exit("controlla se hai scritto RAST o HAD")
 	def reconstructHadamard(self):
-
+		"""
+		self.reg.fit(self.M() ,self.data.getData())  
 		self.reg.fit(self.M() ,self.data.getData())   
-		self.recons = self.reg.coef_	
-		
+		self.recons = self.reg.coef_	 
+		print(self.M().shape)
+		print(self.data.getData().shape)
+		"""
+		self.recons = np.zeros((self.nBasis,4096)) 
+		for i in range(4096):
+			self.recons[:,i] = lsmr(self.M(),self.data.getData()[:,i])[0] #spero ordine corretto
+		self.recons= self.recons.T
+
 	def axis(self):
 		self.calibrationToWl()
 		self.calibrateToWn()
 	def calibrationToWl(self):
 		p = np.array([  1.51491966* 64/self.nBasis, 809.28844682])
-		self.wavelength=np.zeros(self.nBasis)
+		self.wl=np.zeros(self.nBasis)
 		for i in range(self.nBasis):
-			self.wavelength[i]=i*p[0]+p[1]
+			self.wl[i]=i*p[0]+p[1]
 	def calibrateToWn(self):
 		self.wn=np.zeros(self.nBasis)
 		for i in range(self.nBasis):
-			self.wn[i]=(1/self.lambda_0-1/self.wavelength[i])*1e7
+			self.wn[i]=(1/self.lambda_0-1/self.wl[i])*1e7
 			
 	def wlAtTimeGate(self, tGate):
 		idx = np.where(self.time == tGate)
@@ -164,15 +186,23 @@ class reconstructTDDR:
 		if self.removeFirstLine:
 			return self.wn[1:]
 		return self.wn
-	def time(self):
-		return self.data.getTime()
+	def wavelength(self):
+		if self.removeFirstLine:
+			return self.wl[1:]
+		return self.wl
+	def time(self, inNs = True):
+		if inNs:
+			conv = 1e9
+		else:
+			conv = 1
+		return self.data.getTime() * conv
 	def reconstruction(self):
-		self.recons = self.recons.T
 		if self.rastOrHad == RAST:
 			return self.recons
+		recons = self.recons.T
 		if self.removeFirstLine:
-			return self.recons[1:,:]
-		return self.recons
+			return recons[1:,:]
+		return recons
 		
 	def fwhm(self,axis,data):
 		pos0 = np.where(data == np.amax(data))[0][0]
