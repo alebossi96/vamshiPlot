@@ -1,3 +1,12 @@
+"""
+
+My code 
+
+""" 
+
+
+
+
 import  sdtfile
 import numpy as np
 import matplotlib.pyplot as plt
@@ -5,6 +14,10 @@ from pynverse import inversefunc
 from scipy.optimize import fsolve
 from scipy.signal import peak_widths
 def readSdt(fileName):
+	"""
+	
+	:param name fileName - filename
+	"""
 	sdt = sdtfile.SdtFile(fileName)
 	data = np.zeros((len(sdt.times[0]),2))
 	for i in range(len(sdt.times[0])):
@@ -15,6 +28,7 @@ def readSdt(fileName):
 class wavelengthTroughTime:
 	
 	def timeRayleigh(self):
+		
 		data = readSdt(self.fileRay)
 		Post0 = np.where(data[:,1] == np.amax(data[:,1]))[0][0]
 		t0 = data[Post0,0]
@@ -39,11 +53,17 @@ class wavelengthTroughTime:
 	def timeToWl900(self,time): #from time to wavelength
 		p = np.array([ -3.3068e+27 ,  1.2054e+20,  -1.5128e+12,   7.4733e+03])
 		return p[0]*time**3+p[1]*time**2+p[2]*time**1+p[3]
-		
+	def timeToWl700_2(self,time):
+		#ATTENZIONE test0033 PER QUALCHE MOTIVO HA IL TGATE LA METÀ DI QUELLO CORRETTO FATTORE 2 NON SPIEGATO!
+		p =np.array([  -4.6640e+26,   1.3148e+18,  -2.9028e+10,   8.2144e+02])
+		return p[0]*time**3+p[1]*time**2+p[2]*time**1+p[3]
 	def timeToWl(self,time):
+		"""
+		:param name time - filename
+		"""
 		if(self.wl_0>900):
 			return self.timeToWl900(time)	
-		return self.timeToWl700(time)
+		return self.timeToWl700_2(time)
 	def calibration(self):
 		self.lmd = np.zeros(len(self.data))
 		self.wavenumber = np.zeros(len(self.data))
@@ -54,7 +74,7 @@ class wavelengthTroughTime:
 			dt =  self.time[i]+offset; # s
 			self.lmd[i] = self.timeToWl(dt)
 			self.wavenumber[i] = (1/self.wl_0-1/self.lmd[i])*1e7
-		
+		return (self.lmd, self.wavenumber)
 
 	def fwhmResolution(self):
 	#TODO scrivere meglio

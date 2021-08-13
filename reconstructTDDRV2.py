@@ -15,6 +15,7 @@ RAST = "rast"
 HAD = "had"
 nPoints = 4096
 """
+USARE scipy.optimize
 class ridgeTime:
 	def __init__(self,alpha):
 		self.alpha = alpha
@@ -28,7 +29,7 @@ class ridgeTime:
 			b = np.matmul(self.matrix.T, dataNp[:,i]) +lmd* prev
 			self.recons[:,i] = lsmr(M,b)[0]
 			prev = self.recons[:,i]
-			
+	
 """
 class f_tT_:
 	def __init__(self,fileName,nBanks,nBasis, nMeas = -1, compress = True):
@@ -94,13 +95,16 @@ class f_tT_:
 		return len(self.data)#ho copiato tutto, cambio solo tot
 	def getTime(self):
 		return self.time
-	def divideInSlice(self,i0,iF):
+	def copy(self,i0,iF):
 		new = copy.copy(self)
 		new.nMeas = iF-i0
 		new.data = self.data[i0:iF]
 		new.tot =self.tot[i0:iF,:]
 		return new
-			
+	def __add__(self,b):
+		return self.tot+b.tot
+	def __sub__(self,b):
+		return self.tot-b.tot
 class reconstructTDDR:
 	def __init__(self,data, rastOrHad, lambda_0 ,method="lsmr", Alpha=0, removeFirstLine = True):
 	
@@ -158,11 +162,17 @@ class reconstructTDDR:
 		self.recons = self.reg.coef_	 
 		print(self.M().shape)
 		print(self.data.getData().shape)
+		
+
 		"""
-		self.recons = np.zeros((self.nBasis,4096)) 
+		self.reg.fit(self.M() ,self.data.getData())   
+		recons1 = self.reg.coef_
+		"""	
+		recons2 = np.zeros((self.nBasis,4096)) 
 		for i in range(4096):
-			self.recons[:,i] = lsmr(self.M(),self.data.getData()[:,i])[0] #spero ordine corretto
-		self.recons= self.recons.T
+			recons2[:,i] = lsmr(self.M(),self.data.getData()[:,i])[0] #Perchè qui c'è la prima linea a caso e in reg..fit no?
+		"""
+		self.recons= recons1#self.recons.T
 
 	def axis(self):
 		self.calibrationToWl()

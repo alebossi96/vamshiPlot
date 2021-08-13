@@ -7,6 +7,7 @@ from scipy.sparse.linalg import lsmr
 from scipy.linalg import hadamard
 import librerieTesi.hadamardOrdering as hadamardOrdering
 from sklearn import linear_model
+from scipy.signal import peak_widths
 
 def readSdt(fileName, numBanks):
 	data = []
@@ -29,12 +30,13 @@ def readSdt(fileName, numBanks):
 	return (time,data)
 
 class reconstructTDDR:
-	def __init__(self,fileName,nBanks,nBasis,nMeas, rastOrHad, lambda_0,method, lassoAlpha=0, compress = True):
+	def __init__(self,fileName,nBanks,nBasis,nMeas, rastOrHad, lambda_0,method="lsmr", lassoAlpha=0, compress = True):
 		self.nBanks =nBanks
 		self.nBasis = nBasis
 		self.nMeas = nMeas
 		(self.time,self.data) = readSdt(fileName,self.nBanks);
 		self.rastOrHad=rastOrHad
+		print(rastOrHad)
 		self.nPoints = 4096
 		self.rmv = False
 		self.lambda_0 = lambda_0
@@ -99,17 +101,24 @@ class reconstructTDDR:
 		
 		#data è 2D
 
-		#self.recons = np.zeros((nBasis,self.nPoints ))
-		"""
+
+		
 		self.reg.fit(self.matrix,dataNp)   
 		self.recons = self.reg.coef_
 		print(self.recons.shape)
 		"""
+		self.recons = np.zeros((nBasis,self.nPoints ))
+		lmd = 10;
+		prev = np.zeros(self.recons[:,0].shape)
 		for i in range(self.nPoints ):
-			self.reg.fit(self.matrix,dataNp[:,i])
-			self.recons[:,i] = self.reg.coef_
+			M = np.matmul(self.matrix.T,self.matrix)
+			M += lmd *np.eye(M.shape[0])
+			b = np.matmul(self.matrix.T, dataNp[:,i]) +lmd* prev
+			self.recons[:,i] = lsmr(M,b)[0]
+			prev = self.recons[:,i]
 		
-		#"""
+		"""
+		
 	def wlAtTimeGate(self, tGate):
 		idx = np.where(self.time == tGate)
 		return self.recons[:,idx]
@@ -122,41 +131,60 @@ class reconstructTDDR:
 			return self.wn[1:]
 		return self.wn
 	def reconstruction(self):
+		print(self.rastOrHad)
+		if self.rastOrHad == "rast":
+			return self.tot
 		if self.rmv:
 
-			return self.recons[:,1:]
+			return self.recons[1:,:]
 		return self.recons
+		
+	def fwhm(self,axis,data):
+	#TODO scrivere meglio
+		
+		pos0 = np.where(data == np.amax(data))[0][0]
+		print(peak_widths(data, [pos0]))
+		print(axis)
+		fwhm_idx = int(peak_widths(data, [pos0])[0])
+		
+		fwhm =  (axis[pos0+fwhm_idx] - axis[pos0-fwhm_idx])*1000
+		return fwhm
 """
 mancano calibrazioni
 """
 if __name__=="__main__":
 	
-	nBanks =40
-	nBasis = 64
-	nMeas = 64
-	fileName = "0406/m9"
+	nBanks =20
+	nBasis = 32
+	nMeas = 32
+	fileName = "0406/m1"
 	lambda_0=780
 	test = reconstructTDDR(fileName,nBanks,nBasis,nMeas, "Had", lambda_0,"Ridge", 100, True)
-	test.removeFirstLine(True)
+	test.removeFirstLine(False)
 	from latex import latex
 	lat = latex("test")
 	plot = []
-	print(test.reconstruction().shape)
-	name = lat.plotData2D(test.wavenumber(), test.time,test.reconstruction(),"time","ns","wavenumber","$cm^{-1}$","reconstruct m9","m9RidgeoComp" )
+	print("shape reconstruction",test.reconstruction().shape)
+	print("shape wavenumber",test.wavenumber().shape)
+	print("shape time",test.time.shape)
+	name = lat.plotData2D( test.wavenumber(), test.time , test.reconstruction(),"time","ns","wavenumber","$cm^{-1}$","reconstruct m1","m1RidgeoComp" )
+	#lat.plotData( x = test.wavenumber(),y  = np.sum(test.reconstruction(),axis =1),x_label="wavenumber",x_um="$cm^{-1}$",plot_title="example",IsLog= False  ,saveas="exampleLin" )
+	
+	
 	test = reconstructTDDR(fileName,nBanks,nBasis,nMeas, "Had", lambda_0,"Lasso", 0.1, True)
-	test.removeFirstLine(True)
+	test.removeFirstLine(False)
 	from latex import latex
 	lat = latex("test")
 	plot = []
 	print(test.reconstruction().shape)
-	name = lat.plotData2D(test.wavenumber(), test.time,test.reconstruction(),"time","ns","wavenumber","$cm^{-1}$","reconstruct m9","m9LassoComp" )
-	test = reconstructTDDR(fileName,nBanks,nBasis,nMeas, "Had", lambda_0,"lsmr", 0.02, True)
-	test.removeFirstLine(True)
+	name = lat.plotData2D(  test.wavenumber(),test.time,test.reconstruction(),"time","ns","wavenumber","$cm^{-1}$","reconstruct m1","m1LassoComp" )
+	test = reconstructTDDR(fileName,nBanks,nBasis,nMeas, "Had", lambda_0,"lsmr", 0.2, True)
+	test.removeFirstLine(False)
 	from latex import latex
 	lat = latex("test")
 	plot = []
 	print(test.reconstruction().shape)
-	name = lat.plotData2D(test.wavenumber(), test.time,test.reconstruction(),"time","ns","wavenumber","$cm^{-1}$","reconstruct m9","m9LsmrComp" )
+	name = lat.plotData2D(test.wavenumber(),test.time, test.reconstruction(),"time","ns","wavenumber","$cm^{-1}$","reconstruct m1","m1LsmrComp" )
 
 	"""
 	test = reconstructTDDR(fileName,nBanks,nBasis,nMeas, "Had", lambda_0,"lsmr", 0, False)

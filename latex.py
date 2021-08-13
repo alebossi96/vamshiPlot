@@ -13,9 +13,9 @@ class latex:
 		self.f.write("\\end{document}\n")
 		self.f.close()
 		
-	def plotData(self, x,y,x_label,x_um,plot_title,logOrlin,saveas ):
+	def plotData(self, x,y,x_label,x_um,plot_title,IsLog,saveas ):
 		plt.plot(x,y)
-		if(logOrlin):
+		if(IsLog):
 			plt.yscale('log')
 		plt.xlabel(x_label+"["+x_um+"]")
 		plt.ylabel("counts [a.u.]")
@@ -29,6 +29,7 @@ class latex:
 		plt.xlabel( x_label+" ["+x_um+"]")
 		plt.ylabel(y_label+ "["+y_um+"]")
 		plt.title(plot_title)
+		plt.colorbar()
 		plt.savefig(saveas+"."+self.ext)
 		plt.close()
 		return saveas
@@ -43,9 +44,11 @@ class latex:
 		self.f.write("\\includegraphics[scale=0.4]{"+name+"."+self.ext+"}\n")
 	def newSection(self,sectionName):
 		self.f.write("\\section{"+sectionName+"}\n")
+	def newSubSection(self,sectionName):
+		self.f.write("\\subsection{"+sectionName+"}\n")
 	
 	def newFigure(self,toPlot,caption):
-		self.f.write("\\begin{figure}[!htb]\n")
+		self.f.write("\\begin{figure}[!h]\n")
 		if(len(toPlot)==1):	
 			self.includeGraphics(toPlot[0])
 		else:
