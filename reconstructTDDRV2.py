@@ -12,7 +12,7 @@ import sys
 import copy
 from typing import List, Tuple
 RAST = "rast"
-
+#assert False, "Oh no! This assertion failed!"
 HAD = "had"
 nPoints = 4096
 """
@@ -131,12 +131,10 @@ class reconstructTDDR:
 		else:
 			self.removeFirstLine = removeFirstLine
 		self.nBasis = self.data.getnBasis()
-		if  rastOrHad != RAST and rastOrHad != HAD:
-			sys.exit("It must be raster or HAD")
-		if rastOrHad == RAST and not self.data.getIsCompress():
-			sys.exit("It cannot be raster and not compressed!")
-		if rastOrHad == RAST and self.removeFirstLine:
-			sys.exit("It cannot be raster and remove first line!")
+		assert not(rastOrHad != RAST and rastOrHad != HAD), "It must be RAST or HAD"
+
+		assert not (rastOrHad == RAST and not self.data.getIsCompress()),"It cannot be raster and not compressed!"
+		assert not(rastOrHad == RAST and self.removeFirstLine), "It cannot be raster and remove first line!"
 		
 		if method == "lsmr":
 			print("lsmr")
