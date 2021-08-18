@@ -1,7 +1,9 @@
 
 import matplotlib.pyplot as plt
+from typing import List, Tuple
+import numpy as np
 class latex:
-	def __init__(self, filename):
+	def __init__(self, filename: str):
 		self.ext ="jpg"
 		self.f = open(filename+".tex","w")
 		self.f.write("\\documentclass{report}\n")
@@ -13,7 +15,14 @@ class latex:
 		self.f.write("\\end{document}\n")
 		self.f.close()
 		
-	def plotData(self, x,y,x_label,x_um,plot_title,IsLog,saveas ):
+	def plotData(self,
+			 x: np.array,
+			 y: np.array,
+			 x_label: str,
+			 x_um: str,
+			 plot_title: str,
+			 IsLog: bool,
+			 saveas: str ) -> str:
 		plt.plot(x,y)
 		if(IsLog):
 			plt.yscale('log')
@@ -23,7 +32,16 @@ class latex:
 		plt.savefig(saveas+"."+self.ext)
 		plt.close()
 		return saveas
-	def plotData2D(self, x,y,data,x_label,x_um,y_label,y_um,plot_title,saveas ):
+	def plotData2D(self,
+			 x: np.array,
+			 y: np.array,
+			 data: np.array,
+			 x_label: str,
+			 x_um: str,
+			 y_label: str,
+			 y_um: str,
+			 plot_title: str,
+			 saveas: str ) -> str:
 		plt.rcParams['pcolor.shading'] ='nearest'
 		plt.pcolormesh(x, y,data)
 		plt.xlabel( x_label+" ["+x_um+"]")
@@ -33,21 +51,21 @@ class latex:
 		plt.savefig(saveas+"."+self.ext)
 		plt.close()
 		return saveas
-	def addSubFigure(self,name, newline):
+	def addSubFigure(self,name, newline: bool) -> None:
 		self.f.write("\\begin{subfigure}{.5\\textwidth}\n")
 		self.includeGraphics(name)
 		self.f.write("\end{subfigure}\n")
 		if newline:
 			self.f.write("\\vline\n")
 
-	def includeGraphics(self, name):
+	def includeGraphics(self, name) -> None:
 		self.f.write("\\includegraphics[scale=0.4]{"+name+"."+self.ext+"}\n")
-	def newSection(self,sectionName):
+	def newSection(self,sectionName) -> None:
 		self.f.write("\\section{"+sectionName+"}\n")
-	def newSubSection(self,sectionName):
+	def newSubSection(self,sectionName) -> None:
 		self.f.write("\\subsection{"+sectionName+"}\n")
 	
-	def newFigure(self,toPlot,caption):
+	def newFigure(self,toPlot: List[str],caption) -> None:
 		self.f.write("\\begin{figure}[!h]\n")
 		if(len(toPlot)==1):	
 			self.includeGraphics(toPlot[0])

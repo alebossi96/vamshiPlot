@@ -10,6 +10,7 @@ from sklearn import linear_model
 from scipy.signal import peak_widths
 import sys
 import copy
+from typing import List, Tuple
 RAST = "rast"
 
 HAD = "had"
@@ -31,8 +32,17 @@ class ridgeTime:
 			prev = self.recons[:,i]
 	
 """
+
+#TODO data type f_tT_
+#TODO mypy
 class f_tT_:
-	def __init__(self,fileName,nBanks,nBasis, nMeas = -1, compress = True):
+	def __init__(
+			self,
+			fileName: str,
+			nBanks: int,
+			nBasis: int,
+			nMeas: int = -1,
+			compress: bool = True):
 		self.nBanks =nBanks
 		self.nBasis = nBasis
 		if nMeas == -1: # se non specificato è uguale a nBasis, (caso compressioni)
@@ -44,7 +54,7 @@ class f_tT_:
 		self.compress = compress
 		self.accumulate()
 		
-	def readSdt(self, fileName):
+	def readSdt(self, fileName: str) -> Tuple[np.array,List]:
 		data = []
 		for i in range(self.nBanks):
 			zeros = int(np.log10(self.nBanks+1))
@@ -66,7 +76,7 @@ class f_tT_:
 			for j in range(batch):
 				data.append(sdt.data[0][ j,:])
 		return (time,data)
-	def accumulate(self):
+	def accumulate(self) -> None:
 		self.tot = np.zeros((self.dim(),nPoints ))
 		
 		i = 0
@@ -77,25 +87,23 @@ class f_tT_:
 			else:
 				self.tot[i,:]= el
 			i+=1
-		return
 		
-		
-	def getData(self):
+	def getData(self) -> np.array:
 		return self.tot
 	#magari posso passare :
-	def getIsCompress(self):
+	def getIsCompress(self) -> bool:
 		return self.compress
-	def getnBasis(self):
+	def getnBasis(self) -> int:
 		return self.nBasis
-	def getnMeas(self):
+	def getnMeas(self) -> int:
 		return self.nMeas
-	def dim(self):
+	def dim(self) -> int:
 		if self.compress:
 			return self.nBasis
 		return len(self.data)#ho copiato tutto, cambio solo tot
-	def getTime(self):
+	def getTime(self) -> np.array:
 		return self.time
-	def copy(self,i0,iF):
+	def copy(self,i0: int, iF: int):
 		new = copy.copy(self)
 		new.nMeas = iF-i0
 		new.data = self.data[i0:iF]
@@ -106,7 +114,13 @@ class f_tT_:
 	def __sub__(self,b):
 		return self.tot-b.tot
 class reconstructTDDR:
-	def __init__(self,data, rastOrHad, lambda_0 ,method="lsmr", Alpha=0, removeFirstLine = True):
+	def __init__(self,
+			data: f_tT_, 
+			rastOrHad: str, 
+			lambda_0: int ,
+			method: str="lsmr", 
+			Alpha: float=0, 
+			removeFirstLine: bool = True):
 	
 		self.data = data
 		self.rastOrHad = rastOrHad
@@ -137,7 +151,7 @@ class reconstructTDDR:
 		self.sz = self.data.dim()
 		self.execute()	
 		self.axis()
-	def M(self):
+	def M(self) -> np.array:
 		dim = self.data.getnBasis()
 		H = 0.5*(hadamardOrdering.cake_cutting(dim) + np.ones((dim,dim)))
 		if self.data.getIsCompress():
@@ -147,7 +161,7 @@ class reconstructTDDR:
 		for i in range(self.sz):
 			matrix[i,:]= H[i%self.nBasis,:]
 		return matrix
-	def execute(self):
+	def execute(self) -> None:
 
 		if self.rastOrHad == HAD:
 			self.reconstructHadamard()
@@ -155,7 +169,7 @@ class reconstructTDDR:
 			self.recons = self.data.getData()
 		else:
 			sys.exit("controlla se hai scritto RAST o HAD")
-	def reconstructHadamard(self):
+	def reconstructHadamard(self) -> None:
 		"""
 		self.reg.fit(self.M() ,self.data.getData())  
 		self.reg.fit(self.M() ,self.data.getData())   
@@ -174,39 +188,39 @@ class reconstructTDDR:
 		"""
 		self.recons= recons1#self.recons.T
 
-	def axis(self):
+	def axis(self) -> None:
 		self.calibrationToWl()
 		self.calibrateToWn()
-	def calibrationToWl(self):
+	def calibrationToWl(self) -> None:
 		p = np.array([  1.51491966* 64/self.nBasis, 809.28844682])
 		self.wl=np.zeros(self.nBasis)
 		for i in range(self.nBasis):
 			self.wl[i]=i*p[0]+p[1]
-	def calibrateToWn(self):
+	def calibrateToWn(self) -> None:
 		self.wn=np.zeros(self.nBasis)
 		for i in range(self.nBasis):
 			self.wn[i]=(1/self.lambda_0-1/self.wl[i])*1e7
 			
-	def wlAtTimeGate(self, tGate):
+	def wlAtTimeGate(self, tGate: int) -> np.array:
 		idx = np.where(self.time == tGate)
 		return self.recons[:,idx]
-	def line(self, idx):
+	def line(self, idx: int) -> np.array:
 		return self.recons[idx,:]
-	def wavenumber(self):
+	def wavenumber(self) -> np.array:
 		if self.removeFirstLine:
 			return self.wn[1:]
 		return self.wn
-	def wavelength(self):
+	def wavelength(self) -> np.array:
 		if self.removeFirstLine:
 			return self.wl[1:]
 		return self.wl
-	def time(self, inNs = True):
+	def time(self, inNs: bool = True) -> np.array:
 		if inNs:
 			conv = 1e9
 		else:
 			conv = 1
 		return self.data.getTime() * conv
-	def reconstruction(self):
+	def reconstruction(self) -> np.array:
 		if self.rastOrHad == RAST:
 			return self.recons
 		recons = self.recons.T
@@ -214,7 +228,7 @@ class reconstructTDDR:
 			return recons[1:,:]
 		return recons
 		
-	def fwhm(self,axis,data):
+	def fwhm(self,axis: np.array,data: np.array) -> float:
 		pos0 = np.where(data == np.amax(data))[0][0]
 		fwhm_idx = int(peak_widths(data, [pos0])[0])
 		
