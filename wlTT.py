@@ -78,6 +78,7 @@ class wavelengthTroughTime:
 		
 		fwhm_idx = int(peak_widths(data, [pos0])[0])
 		(lmd,wn) = self.calibration()
+		fwhm_idx = int(fwhm_idx/2)
 		fwhmTime = self.time[pos0-fwhm_idx]- self.time[pos0+fwhm_idx]
 		fwhmWL= lmd[pos0-fwhm_idx]-lmd[pos0+fwhm_idx]
 		fwhmWn = wn[pos0-fwhm_idx]-wn[pos0+fwhm_idx]
