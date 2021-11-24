@@ -46,22 +46,26 @@ class f_tT_:
             nBanks: int,
             nBasis: int,
             nMeas: int = -1,
-            compress: bool = True):
+            compress: bool = True,
+            tot_banks = None):
         self.nBanks =nBanks
         self.nBasis = nBasis
         if nMeas == -1: # se non specificato è uguale a nBasis, (caso compressioni)
             self.nMeas = nBasis
         else:
             self.nMeas = nMeas
-        (self.time,self.data) = self.readSdt(fileName);
+        (self.time,self.data) = self.readSdt(fileName, tot_banks);
         
         self.compress = compress
         self.accumulate()
         
-    def readSdt(self, fileName: str) -> Tuple[np.array,List]:
+    def readSdt(self, fileName: str, tot_banks = None ) -> Tuple[np.array,List]:
         data = []
         for i in range(self.nBanks):
-            zeros = int(np.log10(self.nBanks+1))
+            if tot_banks:
+                zeros = int(np.log10(tot_banks+1))
+            else:
+                zeros = int(np.log10(self.nBanks+1))
             fn = fileName
             if self.nBanks == 1:
                 sdt = sdtfile.SdtFile(fn+".sdt")
@@ -250,7 +254,8 @@ class reconstructTDDR:
         if self.removeFirstLine:
             return recons[1:,:]
         return recons
-        
+    def find_maximum_idx(self):
+        return np.where(self.spectrograph() == np.amax(self.spectrograph()))[0][0]
     def fwhm(self,axis: np.array,data: np.array) -> float:
         pos0 = np.where(data == np.amax(data))[0][0]
         fwhm_idx = int(peak_widths(data, [pos0])[0])
@@ -264,6 +269,10 @@ class reconstructTDDR:
         return np.sum(self.reconstruction()[:,init:fin],axis = 1)
     def spectrograph(self):
         return np.sum(self.reconstruction(), axis = 1)
+    def background(self, initial_pos, final_pos):
+        return np.sum(self.reconstruction()[:,initial_pos:final_pos],axis = 1)
+    def reconstruction_remove_background(self,initial_pos, final_pos):
+        return self.reconstruction() - self.background(initial_pos, final_pos)
     def __len__(self):
         if self.removeFirstLine:
             return self.nBasis -1
