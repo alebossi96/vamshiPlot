@@ -23,7 +23,9 @@ class latex:
              x_um: str,
              plot_title: str,
              saveas: str, 
-             IsLog: bool = False
+             IsLog: bool = False,
+             vertical_lines = [],
+             show = False
              ) -> str:
         plt.plot(x,y)
         if(IsLog):
@@ -31,7 +33,12 @@ class latex:
         plt.xlabel(x_label+"["+x_um+"]")
         plt.ylabel("counts [a.u.]")
         plt.title(plot_title)
-        plt.savefig(saveas+"."+self.ext)
+        for el in vertical_lines:
+            plt.axvline(el)
+        if show:
+            plt.show()
+        else:
+            plt.savefig(saveas+ self.ext)
         plt.close()
         return saveas
     def plotData2D(self,
@@ -43,7 +50,8 @@ class latex:
              y_label: str,
              y_um: str,
              plot_title: str,
-             saveas: str ) -> str:
+             saveas: str,
+             show = False ) -> str:
         plt.rcParams['pcolor.shading'] ='nearest'
         plt.pcolormesh(x, y,data)
         plt.xlabel( x_label+" ["+x_um+"]")
@@ -51,7 +59,10 @@ class latex:
         plt.title(plot_title)
         plt.colorbar()
         #TODO consigliabile non usare eps. perchè pesante in 2D!
-        plt.savefig(saveas+"."+self.ext)
+        if show:
+            plt.show()
+        else:
+            plt.savefig(saveas+ self.ext)
         plt.close()
         return saveas
     def addSubFigure(self,name, newline: bool) -> None:
@@ -80,7 +91,7 @@ class latex:
                 
         self.f.write("\n \caption{"+caption+"}\n\n")
         self.f.write("\\end{figure}\n")    
-    def multipleLineSubPlotsSP(self, x, data, title, xLabels, x_um, saveas):
+    def multipleLineSubPlotsSP(self, x, data, title, xLabels, x_um, saveas, show = False):
         sz = len(data)
         for i in range(sz):
             mx = max(data[i])
@@ -88,10 +99,13 @@ class latex:
             plt.plot(x, data[i]/mx+off)
         plt.yticks([])
         plt.xlabel(xLabels + "["+ x_um+"]")
-        plt.savefig(saveas+ self.ext)
+        if show:
+            plt.show()
+        else:
+            plt.savefig(saveas+ self.ext)
         plt.close()
         
-    def multipleLineSubPlots(self, x, y, data, title,y_um, xLabels, x_um, saveas, is_setLabel = True):
+    def multipleLineSubPlots(self, x, y, data, title,y_um, xLabels, x_um, saveas, is_setLabel = True, vertical_lines = [], show = False):
         sz = len(y)
         fig, axs = plt.subplots(sz)
         fig.suptitle(title)
@@ -102,21 +116,13 @@ class latex:
             if is_setLabel:
                 axs[i].set_ylabel(str(int(y[i]*100)/100)+ " "+ y_um)
             #TODO migliorare l'arrotondamento!
+            for el in vertical_lines:
+                axs[i].axvline(el)
         axs[sz-1].tick_params(labelbottom=True)
         plt.xlabel(xLabels + "["+ x_um+"]")
-        plt.savefig(saveas+ self.ext)
+        if show:
+            plt.show()
+        else:
+            plt.savefig(saveas+ self.ext)
         plt.close()
     
-if __name__ == "__main__":
-    
-    test = latex("test")
-
-    folder = "2303/300m/"
-    from wlTT import wavelengthTroughTime
-    plot = []
-    meas = wavelengthTroughTime(folder+"CaCO/CaCO_300Mono_3600sGain12.sdt",folder+"CaCO/Raleigh.sdt",785)
-    name = test.plotData(meas.time,meas.data,"time of arrival", "ns","histogram",0, "test1" )
-    plot.append(name)
-    
-    test.newFigure(plot, "Ray")
-

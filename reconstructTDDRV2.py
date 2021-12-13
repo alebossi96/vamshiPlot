@@ -15,7 +15,7 @@ from typing import List, Tuple
 RAST = "rast"
 #assert False, "Oh no! This assertion failed!"
 HAD = "had"
-nPoints = 4096
+
 """
 USARE scipy.optimize
 class ridgeTime:
@@ -38,8 +38,9 @@ class ridgeTime:
 #TODO data type f_tT_
 #TODO mypy
 #TODO dovrei anche selezionare solo un certo tGates
-
+#TODO fare calibrazione direttamente con i wavenumber!
 class f_tT_:
+    
     def __init__(
             self,
             fileName: str,
@@ -47,7 +48,9 @@ class f_tT_:
             nBasis: int,
             nMeas: int = -1,
             compress: bool = True,
-            tot_banks = None):
+            tot_banks = None,
+            nPoints = 4096):
+        self.nPoints = nPoints
         self.nBanks =nBanks
         self.nBasis = nBasis
         if nMeas == -1: # se non specificato è uguale a nBasis, (caso compressioni)
@@ -85,7 +88,7 @@ class f_tT_:
                 data.append(sdt.data[0][ j,:])
         return (time,data)
     def accumulate(self) -> None:
-        self.tot = np.zeros((self.dim(),nPoints ))
+        self.tot = np.zeros((self.dim(),self.nPoints ))
         
         i = 0
         for el in self.data:
@@ -125,14 +128,18 @@ class f_tT_:
         #mi ritorna il nuovo tGates e counts
         time = np.zeros((tGates,))
         tot = np.zeros((self.dim(),tGates))
-        step = 4096/tGates
+        step = self.nPoints/tGates
+        #TODO sbagliato!
         for i in range(tGates):
             time[i] = self.time[int(i*step)]
-            tot[:,i] = self.tot[:,int(i*step)]
+            tot[:,i] = np.sum(self.tot[:,int(i*step):int((i+1)*step)], axis = 1)
         self.time = time
         self.tot = tot
+        self.nPoints = tGates
     def tot_counts(self):
         return sum(sum(self.tot))
+    def tot_time_domain(self):
+        return np.sum(self.tot, axis = 0)
 class reconstructTDDR:
     def __init__(self,
             data: f_tT_, 
@@ -142,22 +149,32 @@ class reconstructTDDR:
             Alpha: float=0, 
             removeFirstLine: bool = True,
             ref_cal_wl : Tuple[int, int] = None,
-            ref_bas : int = 32):
-    
+            ref_bas : int = 32,
+            cake_cutting = False,
+            normalize = False,
+            filename_bkg = None, 
+            n_banks_bkg= None,
+            nPoints_bkg = None):
+        
         self.data = data
         self.rastOrHad = rastOrHad
         self.lambda_0 = lambda_0
         self.method = method
+        self.ref_cal_wl = ref_cal_wl
         if rastOrHad == RAST:
             self.removeFirstLine = False
         else:
             self.removeFirstLine = removeFirstLine
         self.nBasis = self.data.getnBasis()
+        self.cake_cutting = cake_cutting
+        self.normalize = normalize
+        if self.normalize:
+            self.normalize_with_backgroound(filename_bkg,n_banks_bkg, nPoints_bkg)
         assert not(rastOrHad != RAST and rastOrHad != HAD), "It must be RAST or HAD"
 
         assert not (rastOrHad == RAST and not self.data.getIsCompress()),"It cannot be raster and not compressed!"
         assert not(rastOrHad == RAST and self.removeFirstLine), "It cannot be raster and remove first line!"
-        
+        #TODO da fare assert per normalize!
         if method == "lsmr":
             print("lsmr")
             self.reg = linear_model.LinearRegression()
@@ -176,8 +193,10 @@ class reconstructTDDR:
         self.axis(ref_cal_wl, ref_bas)
     def M(self) -> np.array:
         dim = self.data.getnBasis()
-        #H = 0.5*(hadamardOrdering.cake_cutting(dim) + np.ones((dim,dim)))
-        H = 0.5*(hadamard(dim) + np.ones((dim,dim)))
+        if self.cake_cutting: 
+            H = 0.5*(hadamardOrdering.cake_cutting(dim) + np.ones((dim,dim)))
+        else:
+            H = 0.5*(hadamard(dim) + np.ones((dim,dim)))
         if self.data.getIsCompress():
             return H
         matrix = np.zeros((self.sz, self.nBasis))
@@ -234,13 +253,17 @@ class reconstructTDDR:
     def line(self, idx: int) -> np.array:
         return self.recons[idx,:]
     def wavenumber(self) -> np.array:
-        if self.removeFirstLine:
-            return self.wn[1:]
-        return self.wn
+        if not self.normalize:
+            if self.removeFirstLine:
+                return self.wn[1:]
+            return self.wn
+        return self.wn[self.start_range:self.stop_range]
     def wavelength(self) -> np.array:
-        if self.removeFirstLine:
-            return self.wl[1:]
-        return self.wl
+        if not self.normalize:
+            if self.removeFirstLine:
+                return self.wl[1:]
+            return self.wl
+        return self.wl[self.start_range:self.stop_range]
     def time(self, inNs: bool = True) -> np.array:
         if inNs:
             conv = 1e9
@@ -251,11 +274,15 @@ class reconstructTDDR:
         if self.rastOrHad == RAST:
             return self.recons
         recons = self.recons.T
-        if self.removeFirstLine:
-            return recons[1:,:]
-        return recons
+        if not self.normalize:
+            if self.removeFirstLine:
+                return recons[1:,:]
+            return recons
+        norm_spect = recons[ self.start_range:self.stop_range,:]/self.bkg_spectr[self.start_range:self.stop_range, np.newaxis]
+        return norm_spect
     def find_maximum_idx(self):
         return np.where(self.spectrograph() == np.amax(self.spectrograph()))[0][0]
+        #TODO useful for calibration but I will need to implement it
     def fwhm(self,axis: np.array,data: np.array) -> float:
         pos0 = np.where(data == np.amax(data))[0][0]
         fwhm_idx = int(peak_widths(data, [pos0])[0])
@@ -269,26 +296,36 @@ class reconstructTDDR:
         return np.sum(self.reconstruction()[:,init:fin],axis = 1)
     def spectrograph(self):
         return np.sum(self.reconstruction(), axis = 1)
+    def toF(self):
+        return np.sum(self.reconstruction(), axis = 0)
     def background(self, initial_pos, final_pos):
-        return np.sum(self.reconstruction()[:,initial_pos:final_pos],axis = 1)
+        return np.sum(self.reconstruction()[:,initial_pos:final_pos],axis = 1)/(final_pos-initial_pos)
     def reconstruction_remove_background(self,initial_pos, final_pos):
-        return self.reconstruction() - self.background(initial_pos, final_pos)
+        return self.reconstruction() - self.background(initial_pos, final_pos)[:, np.newaxis]
     def __len__(self):
         if self.removeFirstLine:
             return self.nBasis -1
         return self.nBasis
-if __name__=="__main__":
-    
-    nBanks =20
-    nBasis = 32
-    nMeas = 32
-    fileName = "0406/m1"
-    lambda_0=780
-    data = f_tT_(fileName,nBanks,nBasis,nMeas, compress = True)
-    test = reconstructTDDR(data, HAD, lambda_0,method = "tLs", Alpha= 100, removeFirstLine =False)
-    from latex import latex
-    lat = latex("test")
-    plot = []
-
-    name = lat.plotData2D(test.time() , test.wavenumber(), test.reconstruction(),"time","ns","wavenumber","$cm^{-1}$","reconstruct m1","m1RidgeoComp" )
-
+    def __sub__(self, b):
+        new = copy.copy(self)
+        return new.recons-b.recons
+    def __sum__(self):
+        return sum(self.spectrograph())
+    def normalize_with_backgroound(self, filename_bkg,n_banks, nPoints_bkg):
+        data = f_tT_(fileName = filename_bkg,
+                nBanks = n_banks ,#Banks[i], 
+                nBasis = self.nBasis,#B_measurements[i],
+                compress = True,
+                nPoints = nPoints_bkg
+                )
+        rec = reconstructTDDR(data = data,
+            rastOrHad = HAD,
+            lambda_0 = self.lambda_0,
+            method ="lsmr",
+            removeFirstLine = True,
+            ref_cal_wl = self.ref_cal_wl,
+            ref_bas = self.nBasis)
+        self.bkg_spectr = rec.spectrograph()/np.max(rec.spectrograph())
+        limit = 0.5
+        self.start_range = np.argmax(self.bkg_spectr > limit)
+        self.stop_range = np.argmin(self.bkg_spectr[(self.start_range+10):] > limit) +self.start_range+10
