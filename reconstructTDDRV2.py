@@ -49,7 +49,8 @@ class f_tT_:
             nMeas: int = -1,
             compress: bool = True,
             tot_banks = None,
-            nPoints = 4096):
+            nPoints = 4096,
+            background_idx = None):
         self.nPoints = nPoints
         self.nBanks =nBanks
         self.nBasis = nBasis
@@ -61,7 +62,9 @@ class f_tT_:
         
         self.compress = compress
         self.accumulate()
-        
+        if background_idx:
+            print("remove")
+            self.remove_off(background_idx[0], background_idx[1])
     def readSdt(self, fileName: str, tot_banks = None ) -> Tuple[np.array,List]:
         data = []
         for i in range(self.nBanks):
@@ -140,6 +143,11 @@ class f_tT_:
         return sum(sum(self.tot))
     def tot_time_domain(self):
         return np.sum(self.tot, axis = 0)
+    def remove_off(self, idx_start, idx_stop):
+        dim = idx_stop-idx_start
+        off = np.sum(self.tot[:,idx_start:idx_stop], axis = 1)/dim
+        self.tot =self.tot - off[:,np.newaxis]
+        print(self.tot.shape)
 class reconstructTDDR:
     def __init__(self,
             data: f_tT_, 
@@ -191,6 +199,11 @@ class reconstructTDDR:
         self.sz = self.data.dim()
         self.execute()    
         self.axis(ref_cal_wl, ref_bas)
+        if removeFirstLine:
+            self.start_range = 1
+        else:
+            self.start_range = 0
+        self.stop_range = len(self.wavelength())
     def M(self) -> np.array:
         dim = self.data.getnBasis()
         if self.cake_cutting: 
