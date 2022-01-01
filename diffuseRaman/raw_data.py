@@ -1,8 +1,9 @@
 import copy
+from typing import List, Tuple
 from  librerieTesi.diffuseRaman import core
 from scipy.signal import peak_widths
 import numpy as np
-
+import  sdtfile
 class RawData:
     def __init__(
             self,
@@ -12,19 +13,45 @@ class RawData:
             n_meas: int = -1,
             compress: bool = True,
             tot_banks = None,
-            background_idx = None):
+            background_time = None):
         self.n_banks =n_banks
         self.n_basis = n_basis
         if n_meas == -1: # se non specificato è uguale a n_basis, (caso compressioni)
             self.n_meas = n_basis
         else:
             self.n_meas = n_meas
-        (self.time,self.data) = core.readSdt(filename, tot_banks)
+        (self.time,self.data) = self.readSdt(filename, tot_banks)
         self.n_points = len(self.time)
         self.compress = compress
         self.accumulate()
-        if background_idx:
-            self.remove_bkg(background_idx[0], background_idx[1])
+        if background_time:
+            self.remove_bkg(background_time[0], background_time[1])
+    def readSdt(self, filename: str, tot_banks = None ) -> Tuple[np.array,List]:
+        data = []
+        for i in range(self.n_banks):
+            if tot_banks:
+                zeros = int(np.log10(tot_banks+1))
+            else:
+                zeros = int(np.log10(self.n_banks+1))
+            fn = filename
+            if self.n_banks == 1:
+                sdt = sdtfile.SdtFile(fn+".sdt")
+            elif i==0:
+                sdt = sdtfile.SdtFile(fn+"_c"+'0'*(zeros)+str(i)+".sdt")
+            elif i<10:
+                sdt = sdtfile.SdtFile(fn+"_c"+'0'*(zeros)+str(i)+".sdt")
+            elif i<100:
+                sdt = sdtfile.SdtFile(fn+"_c"+'0'*(zeros-1)+str(i)+".sdt")
+            elif i<1000:
+                sdt = sdtfile.SdtFile(fn+"_c"+'0'*(zeros-2)+str(i)+".sdt")
+            elif i<10000:
+                sdt = sdtfile.SdtFile(fn+"_c"+'0'*(zeros-3)+str(i)+".sdt")
+            time = sdt.times[0][:]
+            batch = sdt.data[0].shape[0]
+            for j in range(batch):
+                data.append(sdt.data[0][ j,:])
+        return (time,data)
+    
     def accumulate(self) -> None:
         self.tot = np.zeros((self.__len__(),self.n_points ))
         i = 0
@@ -52,6 +79,18 @@ class RawData:
         self.time = self.time[:length]
         self.tot = self.tot[:,idx_start:idx_stop]
         self.n_points = length
+    def t_gate_bin(self, num_t_gates):
+        time = np.zeros((num_t_gates,))
+        tot = np.zeros((self.__len__(),num_t_gates))
+        step = self.n_points/num_t_gates
+        for i in range(num_t_gates):
+            time[i] = self.time[int(i*step)]
+            tot[:,i] = np.sum(self.tot[:,int(i*step):int((i+1)*step)], axis = 1)
+        self.time = time
+        self.tot = tot
+        self.n_points = num_t_gates
+    def change_um_time(self, conv):
+        self.time *= conv
     def __len__(self) -> int:
         if self.compress:
             return self.n_basis

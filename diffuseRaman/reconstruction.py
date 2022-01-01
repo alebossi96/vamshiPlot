@@ -9,6 +9,7 @@ import librerieTesi.hadamardOrdering as hadamardOrdering
 import librerieTesi.timeLasso as tLs
 from sklearn import linear_model
 from librerieTesi.diffuseRaman import raw_data as rd
+from librerieTesi.diffuseRaman import core
 RAST = "rast"
 #assert False, "Oh no! This assertion failed!"
 HAD = "had"
@@ -28,12 +29,6 @@ class ridgeTime:
             self.recons[:,i] = lsmr(M,b)[0]
             prev = self.recons[:,i]
 """
-#TODO fare velocemente il calcolo della risoluzione
-#TODO importare modifiche fatte nel lab computer
-#TODO data type f_tT_
-#TODO mypy
-#TODO dovrei anche selezionare solo un certo tGates
-#TODO fare calibrazione direttamente con i wavenumber!
 class Reconstruction:
     def __init__(self,
             data: rd.RawData,
@@ -42,6 +37,7 @@ class Reconstruction:
             method: str="lsmr",
             alpha: float=0,
             remove_first_line: bool = True,
+            ref_cal_wn : Tuple[int, int] = None,
             ref_cal_wl : Tuple[int, int] = None,
             ref_bas : int = 32,
             cake_cutting = False,
@@ -61,6 +57,9 @@ class Reconstruction:
         self.n_basis = self.data.n_basis
         self.cake_cutting = cake_cutting
         self.normalize = normalize
+        if ref_cal_wn is not None:
+            ref_cal_wl = ref_cal_wn
+            ref_cal_wl[1] = 1/(1/ lambda_0 - ref_cal_wn[1] / 1e7)
         if self.normalize:
             self.normalize_with_background(filename_bkg,n_banks_bkg)
         assert not(rast_had != RAST and rast_had != HAD), "It must be RAST or HAD"
@@ -80,18 +79,18 @@ class Reconstruction:
             print("tLs")
             self.reg = tLs.timeLasso(alpha=alpha)
         self.execute()
-        if remove_first_line:
+        if remove_first_line and ref_cal_wl is not None:
             ref_cal_wl[0] += 1
         self.axis(ref_cal_wl, ref_bas)
         self.start_range = 0
         self.stop_range = len(self.wavelength())
     def M(self) -> np.array:
-        dim = self.data.getn_basis()
+        dim = len(self.data)
         if self.cake_cutting: 
             H = 0.5*(hadamardOrdering.cake_cutting(dim) + np.ones((dim,dim)))
         else:
             H = 0.5*(hadamard(dim) + np.ones((dim,dim)))
-        if self.data.getIsCompress():
+        if self.data.compress:
             return H
         matrix = np.zeros((len(self.data), self.n_basis))
         for i in range(len(self.data)):
@@ -101,11 +100,11 @@ class Reconstruction:
         if self.rast_had == HAD:
             self.reconstruct_hadamard()
         elif self.rast_had == RAST:
-            self.recons = self.data.getData()
+            self.recons = self.data.tot
         else:
             sys.exit("controlla se hai scritto RAST o HAD")
     def reconstruct_hadamard(self) -> None:
-        self.reg.fit(self.M() ,self.data.getData())
+        self.reg.fit(self.M() ,self.data.tot)
         recons1 = self.reg.coef_
         self.recons= recons1
     def axis(self, ref_cal : Tuple[int, int] = None, ref_bas : int = 32) -> None:
@@ -126,8 +125,6 @@ class Reconstruction:
     def wl_with_time(self, time: int) -> np.array:
         idx = np.where(self.time == time)
         return self.recons[:,idx]
-    def line(self, idx: int) -> np.array:
-        return self.recons[idx,:]
     def wavenumber(self) -> np.array:
         if not self.normalize:
             if self.remove_first_line:
@@ -140,8 +137,8 @@ class Reconstruction:
                 return self.wl[1:]
             return self.wl
         return self.wl[self.start_range:self.stop_range]
-    def time(self, inNs: bool = True) -> np.array:
-        if inNs:
+    def time(self, conv_to_ns: bool = False) -> np.array:
+        if conv_to_ns:
             conv = 1e9
         else:
             conv = 1
@@ -159,11 +156,6 @@ class Reconstruction:
     def find_maximum_idx(self):
         return np.where(self.spectrograph() == np.amax(self.spectrograph()))[0][0]
         #TODO useful for calibration but I will need to implement it
-    def fwhm(self,axis: np.array,data: np.array) -> float:
-        pos0 = np.where(data == np.amax(data))[0][0]
-        fwhm_idx = int(peak_widths(data, [pos0])[0])
-        fwhm =  (axis[pos0+fwhm_idx] - axis[pos0-fwhm_idx])
-        return fwhm
     def t_gates(self, init, fin):
         #TODO dovrei fare nuovo oggetto?
         init = int(init)
@@ -195,6 +187,19 @@ class Reconstruction:
         limit = 0.2
         self.start_range = np.argmax(self.bkg_spectr > limit)
         self.stop_range = np.argmin(self.bkg_spectr[(self.start_range+10):] > limit) +self.start_range+10
+    def cut_spectra(self, idx_start, idx_stop):
+        """
+        idx_start = core.wavenumber_to_idx(self.wavenumber(),wn_start)
+        idx_stop = core.wavenumber_to_idx(self.wavenumber(),wn_stop)7
+        """
+        new = copy.deepcopy(self)
+        new.wl = self.wavelength()[idx_start:idx_stop]
+        new.wn = self.wavenumber()[idx_start:idx_stop]
+        new.recons = self.reconstruction()[idx_start:idx_stop]
+        new.remove_first_line = False
+        if self.normalize:
+            new.bkg_spectr = self.bkg_spectr[idx_start:idx_stop]
+        return new
     def __len__(self):
         if self.remove_first_line:
             return self.n_basis -1
