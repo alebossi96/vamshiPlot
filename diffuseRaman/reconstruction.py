@@ -2,34 +2,20 @@ import sys
 import copy
 from typing import Tuple
 import numpy as np
-from scipy.sparse.linalg import lsmr
 from scipy.linalg import hadamard
-from scipy.signal import peak_widths
 import librerieTesi.hadamardOrdering as hadamardOrdering
 import librerieTesi.timeLasso as tLs
 from sklearn import linear_model
 from librerieTesi.diffuseRaman import raw_data as rd
 from librerieTesi.diffuseRaman import core
+import tesi_stefan.core.SignalsAndSystems as sis
 RAST = "rast"
-#assert False, "Oh no! This assertion failed!"
 HAD = "had"
-"""
-USARE scipy.optimize
-class ridgeTime:
-    def __init__(self,alpha):
-        self.alpha = alpha
-    def fit(self, matrix, data):
-        self.recons = np.zeros((n_basis,self.nPoints ))
-        lmd = 10;
-        prev = np.zeros(self.recons[:,0].shape)
-        for i in range(self.nPoints ):
-            M = np.matmul(self.matrix.T,self.matrix)
-            M += lmd *np.eye(M.shape[0])
-            b = np.matmul(self.matrix.T, dataNp[:,i]) +lmd* prev
-            self.recons[:,i] = lsmr(M,b)[0]
-            prev = self.recons[:,i]
-"""
 class Reconstruction:
+    """
+    This class performs the reconstruction from the raw_data (from the .sdt files).
+    It transforms it into the usual wavelength/wavenumber axis.
+    """
     def __init__(self,
             data: rd.RawData,
             rast_had: str,
@@ -61,7 +47,7 @@ class Reconstruction:
             ref_cal_wl = ref_cal_wn
             ref_cal_wl[1] = 1/(1/ lambda_0 - ref_cal_wn[1] / 1e7)
         if self.normalize:
-            self.normalize_with_background(filename_bkg,n_banks_bkg)
+            self.normalize_with_efficiency(filename_bkg,n_banks_bkg)
         assert not(rast_had != RAST and rast_had != HAD), "It must be RAST or HAD"
         assert not (rast_had == RAST and not self.data.compress),"It cannot be raster and not compressed!"
         assert not(rast_had == RAST and self.remove_first_line), "It cannot be raster and remove first line!"
@@ -85,8 +71,11 @@ class Reconstruction:
         self.start_range = 0
         self.stop_range = len(self.wavelength())
     def M(self) -> np.array:
+        """
+        Generates the reconstruction matrix
+        """
         dim = len(self.data)
-        if self.cake_cutting: 
+        if self.cake_cutting:
             H = 0.5*(hadamardOrdering.cake_cutting(dim) + np.ones((dim,dim)))
         else:
             H = 0.5*(hadamard(dim) + np.ones((dim,dim)))
@@ -97,6 +86,10 @@ class Reconstruction:
             matrix[i,:]= H[i%self.n_basis,:]
         return matrix
     def execute(self) -> None:
+        """
+        It execute the reconstruction.
+        The reconstructed data are stored into self.recons.
+        """
         if self.rast_had == HAD:
             self.reconstruct_hadamard()
         elif self.rast_had == RAST:
@@ -104,46 +97,73 @@ class Reconstruction:
         else:
             sys.exit("controlla se hai scritto RAST o HAD")
     def reconstruct_hadamard(self) -> None:
+        """
+        Reconstruct from the hadamard basis into the usual wavelength-wavenumber base.
+        """
         self.reg.fit(self.M() ,self.data.tot)
         recons1 = self.reg.coef_
         self.recons= recons1
     def axis(self, ref_cal : Tuple[int, int] = None, ref_bas : int = 32) -> None:
+        """
+        From the calibration data it generates the wavenumber - wavelength axis.
+        """
         self.calibration_wl(ref_cal, ref_bas)
         self.calibration_wn()
     def calibration_wl(self, ref_cal_wl : Tuple[int, int] = None, ref_bas : int = 32) -> None:
+        """
+        Calibration of wavenuber axis.
+        """
         #ref is in a basis 32
         p = np.array([  1.51491966* 64/self.n_basis, 809.28844682])
         if ref_cal_wl is not None:
-            p[1] = ref_cal_wl[1] - ref_cal_wl[0]*p[0]*self.n_basis/ref_bas          
+            p[1] = ref_cal_wl[1] - ref_cal_wl[0]*p[0]*self.n_basis/ref_bas
         self.wl=np.zeros(self.n_basis)
         for i in range(self.n_basis):
             self.wl[i]=i*p[0]+p[1]
     def calibration_wn(self) -> None:
+        """
+        From the wavelength it is converted into wavenumber.
+        """
         self.wn=np.zeros(self.n_basis)
         for i in range(self.n_basis):
             self.wn[i]=(1/self.lambda_0-1/self.wl[i])*1e7
     def wl_with_time(self, time: int) -> np.array:
-        idx = np.where(self.time == time)
+        """
+        Returns the time-domain wavelength distribution.
+        """
+        idx = np.where(self.time() == time)
         return self.recons[:,idx]
     def wavenumber(self) -> np.array:
+        """
+        Returns the wavenuber axis.
+        """
         if not self.normalize:
             if self.remove_first_line:
                 return self.wn[1:]
             return self.wn
         return self.wn[self.start_range:self.stop_range]
     def wavelength(self) -> np.array:
+        """
+        Returns the wavelength axis.
+        """
         if not self.normalize:
             if self.remove_first_line:
                 return self.wl[1:]
             return self.wl
         return self.wl[self.start_range:self.stop_range]
     def time(self, conv_to_ns: bool = False) -> np.array:
+        """
+        Returns the time axis.
+        """
         if conv_to_ns:
             conv = 1e9
         else:
             conv = 1
         return self.data.time * conv
     def reconstruction(self) -> np.array:
+        """
+        Returns the data.
+        """
         if self.rast_had == RAST:
             return self.recons
         recons = self.recons.T
@@ -154,23 +174,29 @@ class Reconstruction:
         norm_spect = recons[ self.start_range:self.stop_range,:]#TODO/self.bkg_spectr[self.start_range:self.stop_range, np.newaxis]
         return norm_spect
     def find_maximum_idx(self):
+        """
+        Find the position of the maximum of the spectrograph. Useful during calibration.
+        """
         return np.where(self.spectrograph() == np.amax(self.spectrograph()))[0][0]
         #TODO useful for calibration but I will need to implement it
     def t_gates(self, init, fin):
+        """
+        Gating of the measurement.
+        """
         #TODO dovrei fare nuovo oggetto?
         init = int(init)
         fin = int(fin)
         return np.sum(self.reconstruction()[:,init:fin],axis = 1)
     def spectrograph(self):
+        """
+        returns the sum on time of each wavenumber
+        """
         return np.sum(self.reconstruction(), axis = 1)
-    def toF(self):
-        return np.sum(self.reconstruction(), axis = 0)
-    def background(self, initial_pos, final_pos):
-        tot_bkg_wn = np.sum(self.reconstruction()[:,initial_pos:final_pos],axis = 1)
-        return tot_bkg_wn/(final_pos-initial_pos)
-    def reconstruction_remove_background(self,initial_pos, final_pos):
-        return self.reconstruction() - self.background(initial_pos, final_pos)[:, np.newaxis]
-    def normalize_with_background(self, filename_bkg,n_banks):
+    def normalize_with_efficiency(self, filename_bkg,n_banks):
+        """
+        From the light background of the sun we find the relative efficiency of the spectrometer at each wavelength.
+        This fuction re-normalize the measurement.
+        """
         data = rd.RawData(filename = filename_bkg,
                 n_banks = n_banks,#Banks[i],
                 n_basis = self.n_basis,#B_measurements[i],
@@ -189,8 +215,11 @@ class Reconstruction:
         self.stop_range = np.argmin(self.bkg_spectr[(self.start_range+10):] > limit) +self.start_range+10
     def cut_spectra(self, idx_start, idx_stop):
         """
+        It selects the spectra into the desired range
+        """
+        """
         idx_start = core.wavenumber_to_idx(self.wavenumber(),wn_start)
-        idx_stop = core.wavenumber_to_idx(self.wavenumber(),wn_stop)7
+        idx_stop = core.wavenumber_to_idx(self.wavenumber(),wn_stop)
         """
         new = copy.deepcopy(self)
         new.wl = self.wavelength()[idx_start:idx_stop]
@@ -200,6 +229,16 @@ class Reconstruction:
         if self.normalize:
             new.bkg_spectr = self.bkg_spectr[idx_start:idx_stop]
         return new
+    def get_signal(self,idx_start, n_points):
+        """
+        Returns the Signal class for the reconstruction
+        """
+        idx_stop = idx_start+ n_points
+        real_signal = sis.Signal(n_points =n_points, length = len(self.time()))
+        real_signal.t = self.time()
+        real_signal.l= self.wavenumber()[idx_start:idx_stop]
+        real_signal.s = self.reconstruction()[idx_start:idx_stop]
+        return real_signal
     def __len__(self):
         if self.remove_first_line:
             return self.n_basis -1

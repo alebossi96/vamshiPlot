@@ -10,6 +10,9 @@ class Plot:
         self.num_lines = 0
         self.vertical_lines = []
     def change_ext(self,ext):
+        """
+        Changes the output file extention
+        """
         self.ext = ext
     def add_vertical_lines(self,line):
         self.vertical_lines.append(line)
@@ -24,7 +27,7 @@ class Plot:
     def plot_data(self,
              x_label: str = '',
              x_um: str = '',
-             plot_title: str = '',
+             title: str = '',
              saveas: str = '',
              is_log: bool = False,
              show = True,
@@ -46,7 +49,7 @@ class Plot:
             plt.yscale('log')
         plt.xlabel(x_label+"["+x_um+"]")
         plt.ylabel("counts [a.u.]")
-        plt.title(plot_title)
+        plt.title(title)
         if show_vertical_line:
             for el in self.vertical_lines:
                 plt.axvline(el)
