@@ -1,4 +1,5 @@
 import copy
+import math
 from typing import List, Tuple
 from  librerieTesi.diffuseRaman import core
 from scipy.signal import peak_widths
@@ -95,15 +96,19 @@ class RawData:
         Selects the desired time-range.
         """
         idx_start = core.time_to_idx(self.time, t_start)
-        idx_stop = core.time_to_idx(self.time, t_stop)
-        length = idx_stop- idx_start
+        idx_stop_approx = core.time_to_idx(self.time, t_stop)
+        log_2_length = round(math.log2(idx_stop_approx- idx_start))
+        length = 2**log_2_length
+        
         self.time = self.time[:length]
+        idx_stop = idx_start + length
         self.tot = self.tot[:,idx_start:idx_stop]
         self.n_points = length
     def t_gate_bin(self, num_t_gates):
         """
         Bins the gate into the desired number of gates.
         """
+        #TODO considera che step può essere float
         time = np.zeros((num_t_gates,))
         tot = np.zeros((self.__len__(),num_t_gates))
         step = self.n_points/num_t_gates
@@ -118,6 +123,11 @@ class RawData:
         Changes the unit of measurement of the time. It simply multiply by a constant the time.
         """
         self.time *= conv
+    def dt(self):
+        """
+        Returns the time interval between two time steps.
+        """
+        return self.time[1]-self.time[0]
     def __len__(self) -> int:
         """
         returns the length of self.tot

@@ -173,6 +173,12 @@ class Reconstruction:
             return recons
         norm_spect = recons[ self.start_range:self.stop_range,:]#TODO/self.bkg_spectr[self.start_range:self.stop_range, np.newaxis]
         return norm_spect
+    def get_list_meas(self):
+        rec = self.reconstruction()
+        output = []
+        for i in range(self.data.n_points):
+            output.append(rec[:,i])
+        return output
     def find_maximum_idx(self):
         """
         Find the position of the maximum of the spectrograph. Useful during calibration.
@@ -239,6 +245,13 @@ class Reconstruction:
         real_signal.l= self.wavenumber()[idx_start:idx_stop]
         real_signal.s = self.reconstruction()[idx_start:idx_stop]
         return real_signal
+    def tot_counts(self):
+        """
+        Return the total counts measured and reconstructed
+        """
+        recons = np.sum(self.reconstruction())
+        meas = self.data.tot_counts()
+        return (meas,recons)
     def __len__(self):
         if self.remove_first_line:
             return self.n_basis -1
