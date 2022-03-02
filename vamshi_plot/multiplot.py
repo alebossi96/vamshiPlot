@@ -32,6 +32,14 @@ class Multiplot:
             self.range_f_x = None
         self.select1 = scenario["Select1"]#custom possibilities for number of selection
         self.value1 = scenario["Value1"]
+        try:
+            self.range_select_min1 = scenario["Range_min1"]
+        except KeyError:
+            self.range_select_min1 = None
+        try:
+            self.range_select_max1 = scenario["Range_max1"]
+        except KeyError:
+            self.range_select_max1 = None
         self.select2 = scenario["Select2"]
         self.value2 = scenario["Value2"]
         self.Rows = scenario["Rows"]
@@ -60,14 +68,24 @@ class Multiplot:
     def read_data(self, filename = None, data_numpy = None, data_titles = None):
         if filename is not None:
             #TODO mettere caso excel
-            return pd.read_csv(filename,delimiter="\t")
+            return pd.read_csv(filename,delimiter=",")
+            #TODO ricorda che deve essere giusto il delimiter
         if data_numpy is not None and data_titles is not None:
             return pd.DataFrame(data_numpy, columns = data_titles)
         raise TypeError("you must enter some data to be parsed")
-    def select_data(self, data_in, select, value):
+    def select_data(self, data_in, select, value = None, range_select_min = None, range_select_max = None):
         if pd.isnull(select):
             return data_in
-        return data_in[data_in[select]==value]
+        if value is not None:
+            return data_in[data_in[select]==value]
+        if range_select_min is not None and range_select_max is not None:
+            return data_in[(data_in[select]>range_select_min) & (data_in[select]<range_select_max)]
+        if range_select_min is not None:
+            return data_in[data_in[select]>range_select_min]
+        if range_select_max is not None:
+            return data_in[data_in[select]<range_select_max]
+                
+        raise TypeError("you must enter a value or range to be selected")
     def plot(self):
         for idx in self.index:
             if self.page[idx] == " ":
@@ -76,8 +94,8 @@ class Multiplot:
             else:
                 pages = self.remove_duplicate_order_list(self.Indata[self.page[idx]])
                 skip_pages = False
-            for page in pages:
-                data1 = self.select_data(data_in = self.Indata, select = self.select1[idx], value = self.value1[idx])
+            for page in pages:     
+                data1 = self.select_data(data_in = self.Indata, select = self.select1[idx],range_select_min = self.range_select_min1[idx], range_select_max = self.range_select_max1[idx] )
                 self.data = self.select_data(data_in = data1, select = self.select2[idx], value = self.value2[idx])
                 if pd.isnull(self.Rows[idx]):
                     row=0
@@ -157,12 +175,21 @@ class Multiplot:
             pass
         else:
             axs.set_ylim([self.y_lower[idx],self.y_upper[idx]])
-            axs.set_xlim(left = self.range_i_x[idx], right = self.range_f_x[idx])
+            if self.range_i_x is None or self.range_i_x[idx] is None:
+                min_x = min(self.data[self.x_axis[idx]]) 
+            else:
+                min_x = self.range_i_x[idx]
+            if self.range_f_x is None or self.range_f_x[idx] is None:
+                max_x = max(self.data[self.x_axis[idx]])
+            else:
+                max_x = self.range_f_x[idx]
+            axs.set_xlim(left = min_x, right = max_x)
+            
         if self.row_title[idx] is True and col==0:
             axs.set_ylabel("%s"%self.Columns[idx]+" \n= " +"%s"%c)
         if self.col_title[idx] is True and row==0:
             axs.set_title("%s"%self.Columns[idx]+" \n= "+"%s"%c)
-        self.add_subplot_border(axs, width = 2, color = 'b')
+        #self.add_subplot_border(axs, width = 2, color = 'b')
             
     def add_subplot_border(self,ax, width=1, color=None ):
 
