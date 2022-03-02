@@ -98,7 +98,7 @@ class Multiplot:
             return data_in[(data_in[select]>range_select_min) & (data_in[select]<range_select_max)]
         if not math.isnan(range_select_min):
             return data_in[data_in[select]>range_select_min]
-        if range_select_max != '':
+        if not math.isnan(range_select_max):
             return data_in[data_in[select]<range_select_max]
                 
         raise TypeError("you must enter a value or range to be selected")
