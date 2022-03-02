@@ -1,6 +1,7 @@
 import math
 import pandas as pd
 #import matplotlib
+import math
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import openpyxl
@@ -30,18 +31,33 @@ class Multiplot:
             self.range_f_x = scenario["Range_fin_x"]
         except KeyError:
             self.range_f_x = None
-        self.select1 = scenario["Select1"]#custom possibilities for number of selection
-        self.value1 = scenario["Value1"]
-        try:
-            self.range_select_min1 = scenario["Range_min1"]
-        except KeyError:
-            self.range_select_min1 = None
-        try:
-            self.range_select_max1 = scenario["Range_max1"]
-        except KeyError:
-            self.range_select_max1 = None
-        self.select2 = scenario["Select2"]
-        self.value2 = scenario["Value2"]
+            
+        self.num_selection = 0
+        for el in scenario.columns:
+            if el == "Select" +str(self.num_selection+1):
+                self.num_selection+=1
+        self.select = []
+        self.value = []
+        self.range_select_min = []
+        self.range_select_max = []
+        for i in range(self.num_selection):
+            for el in scenario.columns:
+                if "Select"+str(i+1) == el:
+                    self.select.append(scenario["Select"+str(i+1)])
+                elif "Value"+str(i+1) == el:
+                    self.value.append( scenario["Value"+str(i+1)])
+                elif "Range_min"+str(i+1) == el:
+                    self.range_select_min.append(scenario["Range_min"+str(i+1)])
+                elif "Range_max"+str(i+1) == el:
+                    self.range_select_max.append(scenario["Range_max"+str(i+1)])
+                
+            if len(self.select)> len(self.value):
+                self.value.append(['']*len(self.index))
+            if len(self.select)> len(self.range_select_min):
+                self.range_select_min.append(['']*len(self.index))
+            if len(self.select)> len(self.range_select_max):
+                self.range_select_max.append(['']*len(self.index))
+                
         self.Rows = scenario["Rows"]
         self.Columns = scenario["Columns"]
         self.row_title = scenario["Row_title"]
@@ -73,16 +89,16 @@ class Multiplot:
         if data_numpy is not None and data_titles is not None:
             return pd.DataFrame(data_numpy, columns = data_titles)
         raise TypeError("you must enter some data to be parsed")
-    def select_data(self, data_in, select, value = None, range_select_min = None, range_select_max = None):
+    def select_data(self, data_in, select, value = '', range_select_min = '', range_select_max = ''):
         if pd.isnull(select):
             return data_in
-        if value is not None:
+        if not math.isnan(value):
             return data_in[data_in[select]==value]
-        if range_select_min is not None and range_select_max is not None:
+        if not math.isnan(range_select_min) and not math.isnan(range_select_max):
             return data_in[(data_in[select]>range_select_min) & (data_in[select]<range_select_max)]
-        if range_select_min is not None:
+        if not math.isnan(range_select_min):
             return data_in[data_in[select]>range_select_min]
-        if range_select_max is not None:
+        if range_select_max != '':
             return data_in[data_in[select]<range_select_max]
                 
         raise TypeError("you must enter a value or range to be selected")
@@ -94,9 +110,14 @@ class Multiplot:
             else:
                 pages = self.remove_duplicate_order_list(self.Indata[self.page[idx]])
                 skip_pages = False
-            for page in pages:     
-                data1 = self.select_data(data_in = self.Indata, select = self.select1[idx],range_select_min = self.range_select_min1[idx], range_select_max = self.range_select_max1[idx] )
-                self.data = self.select_data(data_in = data1, select = self.select2[idx], value = self.value2[idx])
+            for page in pages:
+                for i in range(self.num_selection):
+                    if i == 0:
+                        data1 = self.Indata     
+                    data1 = self.select_data(data_in = data1, select = self.select[i][idx],
+                                                range_select_min = self.range_select_min[i][idx], range_select_max = self.range_select_max[i][idx], 
+                                                value = self.value[i][idx] )
+                    self.data = data1
                 if pd.isnull(self.Rows[idx]):
                     row=0
                     col=0
