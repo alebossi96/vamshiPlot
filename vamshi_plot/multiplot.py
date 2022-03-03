@@ -4,6 +4,7 @@ import pandas as pd
 import math
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
+import matplotlib.gridspec as gridspec
 import openpyxl
 class Multiplot:
     def __init__(self, FileInstructions):
@@ -65,10 +66,24 @@ class Multiplot:
         self.reference = scenario["Reference"]
         self.multigraph = scenario["MultiGraph"]
         self.x_axis = scenario["X-axis"]
-        self.y_axis = scenario["Y-axis"]
+        #self.y_axis = scenario["Y-axis"]
+        self.num_subplots = 1
+        self.y_subplots = []
+        self.y_subplots.append(scenario["Y-axis"])
+        for el in scenario.columns:
+            if el == "Y-axis" +str(self.num_subplots+1):
+                self.num_subplots+=1
+        for i in range(self.num_subplots):
+            for el in scenario.columns:
+                if "Y-axis"+str(i+1) == el:
+                    self.y_subplots.append(scenario["Y-axis"+str(i+1)])
         self.y_scale = scenario["Scale"]
         self.y_lower = scenario["Y-lower"]
         self.y_upper = scenario["Y-upper"]
+        try:
+            self.vertical_lines = scenario["Vertical_lines"]
+        except KeyError:
+            self.vertical_lines = None
         #GET INPUT FROM VARIABLES FILE
         var_old_name = variables["Var_old_name"]
         var_new_name = variables["Var_new_name"]
@@ -103,7 +118,9 @@ class Multiplot:
                 
         raise TypeError("you must enter a value or range to be selected")
     def plot(self):
+        
         for idx in self.index:
+            
             if self.page[idx] == " ":
                 pages = [" "]
                 skip_pages = True
@@ -111,9 +128,12 @@ class Multiplot:
                 pages = self.remove_duplicate_order_list(self.Indata[self.page[idx]])
                 skip_pages = False
             for page in pages:
+                cont = 0
                 for i in range(self.num_selection):
                     if i == 0:
-                        data1 = self.Indata     
+                        data1 = self.Indata
+                    if self.num_selection<0:
+                        break
                     data1 = self.select_data(data_in = data1, select = self.select[i][idx],
                                                 range_select_min = self.range_select_min[i][idx], range_select_max = self.range_select_max[i][idx], 
                                                 value = self.value[i][idx] )
@@ -123,16 +143,17 @@ class Multiplot:
                     col=0
                     nrows=int(math.sqrt(len(set(self.data[self.Columns[idx]]))))#fix subplots array size
                     ncols=math.ceil((len(set(self.data[self.Columns[idx]])))/nrows)#fix subplots array size
-                    fig,axs = self.gen_page(nrows, ncols, idx, page)
+                    fig, outer = self.gen_page(nrows, ncols, idx, page)
                     for c in self.remove_duplicate_order_list(self.data[self.Columns[idx]]):
                         if skip_pages:
                             self.plot_single(data_pivot =self.data[(self.data[self.Columns[idx]]==c)],
-                                          axs = axs[row, col], c = c, idx = idx, col = col, row = row)
+                                          outer = outer[cont], fig = fig, c = c, idx = idx, col = col, row = row)
                         else:
                             self.plot_single(data_pivot =self.data[(self.data[self.Columns[idx]]==c)&
                                          (self.data[self.page[idx]]==page)],
-                                          axs = axs[row, col], c = c, idx = idx, col = col, row = row)
+                                          outer = outer[cont], fig = fig, c = c, idx = idx, col = col, row = row)
                         col=col+1
+                        cont+=1
                         if col==ncols:
                             row=row+1
                             col=0
@@ -144,26 +165,34 @@ class Multiplot:
                                                                  page = page)
                     for row,r in enumerate(self.remove_duplicate_order_list(self.data[self.Rows[idx]])):
                         for col,c in enumerate(self.remove_duplicate_order_list(self.data[self.Columns[idx]])):
+                        
                             if skip_pages:
                                 self.plot_single(data_pivot =self.data[(self.data[self.Columns[idx]]==c)&
                                              (self.data[self.Rows[idx]]==r)],
-                                          axs = axs[row, col], c = c, r = r,idx = idx, col= col, row = row )
+                                          outer = outer[cont], fig = fig, c = c, r = r,idx = idx, col= col, row = row )
                             else:
                                 self.plot_single(data_pivot =self.data[(self.data[self.Columns[idx]]==c)&
                                              (self.data[self.Rows[idx]]==r)&
                                              (self.data[self.page[idx]]==page)],
-                                          axs = axs[row, col], c = c, r = r,idx = idx, col= col, row = row )
+                                          outer = outer[cont], fig = fig, c = c, r = r,idx = idx, col= col, row = row )
+                            cont+=1
                 plt.show()
                 self.pdf.savefig(fig)
                 plt.clf()
         self.pdf.close()
     def gen_page(self,nrows, ncols, idx, page):
-        fig,axs = plt.subplots(nrows,ncols,sharex=True,sharey=True,figsize=(self.width,self.hieght),squeeze=False)
-        plt.subplots_adjust(hspace=0.01,wspace=0.01,left=0.09,bottom=0.09)
+        fig = plt.figure(figsize=(self.width,self.hieght))
+        if len(self.y_subplots)>1:
+            space = 0.1
+        else:
+            space = 0
+        outer = gridspec.GridSpec(nrows,ncols, wspace=space, hspace=space)
+        #fig,axs = plt.subplots(nrows,ncols,sharex=True,sharey=True,figsize=(self.width,self.hieght),squeeze=False)
+        #plt.subplots_adjust(hspace=0.01,wspace=0.01,left=0.09,bottom=0.09)
         fig.supxlabel(self.x_axis[idx]+" ("+self.units[self.x_axis[idx]]+")",fontsize=12,fontweight="bold")
-        fig.supylabel(self.y_axis[idx]+" ("+self.units[self.y_axis[idx]]+")",fontsize=12,fontweight="bold")
+        #fig.supylabel(self.y_axis[idx]+" ("+self.units[self.y_axis[idx]]+")",fontsize=12,fontweight="bold")
         fig.suptitle("%s"%self.title[idx]+"  %s"%self.page[idx]+"=%s"%page,fontsize=12,fontweight = 'bold')
-        return (fig, axs)
+        return (fig, outer)
     """
     def get_index_range(self,index, idx):
         range_low = 1
@@ -174,23 +203,16 @@ class Multiplot:
             range_high = (index<self.range_f_x[idx])
         return range_low & range_high
     """
-    def plot_single(self, data_pivot, axs, c, idx, col, row, r = None):
-        if pd.isnull(self.multigraph[idx]):#reshape dataframe for multiplot
-            pivot = pd.pivot_table(data_pivot,
-                                   index = self.x_axis[idx],
-                                   values = self.y_axis[idx])
-            if r is None:
-                axs.plot(pivot.index,pivot.values,marker='.',label="%s"%c)
-            else:
-                axs.plot(pivot.index,pivot.values,marker='.',label="%s"%r+", %s"%c)
-        else:
-            pivot = pd.pivot_table(data_pivot,
-                                   columns = self.multigraph[idx],
-                                   index = self.x_axis[idx],
-                                   values = self.y_axis[idx])
-            axs.plot(pivot.index,pivot.values,marker='.',label=pivot.columns)
+    def plot_inner(self, fig, inner, pivot, label, idx):
+        axs = plt.Subplot(fig, inner)
+        axs.plot(pivot.index,pivot.values,marker='.',label=label)
+        fig.add_subplot(axs) 
+        if self.vertical_lines is not None and self.vertical_lines[idx] is not None:  
+            lines = self.vertical_lines[idx].split(",")
+            for line in lines:
+                axs.axvline(float(line))
         axs.grid(axis='both',which='major')
-        axs.tick_params(axis="both",which="major",direction="in",labelsize=7)
+        axs.tick_params(axis="both",which="major",direction="in",labelsize=4)
         axs.legend(loc=0,fontsize=7)
         if pd.isnull(self.y_lower[idx]):#Y-limits
             pass
@@ -205,13 +227,33 @@ class Multiplot:
             else:
                 max_x = self.range_f_x[idx]
             axs.set_xlim(left = min_x, right = max_x)
-            
-        if self.row_title[idx] is True and col==0:
-            axs.set_ylabel("%s"%self.Columns[idx]+" \n= " +"%s"%c)
-        if self.col_title[idx] is True and row==0:
-            axs.set_title("%s"%self.Columns[idx]+" \n= "+"%s"%c)
-        #self.add_subplot_border(axs, width = 2, color = 'b')
-            
+                
+    def plot_single(self, data_pivot, outer, fig, c, idx, col, row, r = None):
+        inner = gridspec.GridSpecFromSubplotSpec(len(self.y_subplots), 1,
+                    subplot_spec=outer, wspace=0, hspace=0)
+        for i, y_subplot in enumerate(self.y_subplots):
+            if pd.isnull(self.multigraph[idx]):#reshape dataframe for multiplot
+                pivot = pd.pivot_table(data_pivot,
+                                       index = self.x_axis[idx],
+                                       values = y_subplot[idx])
+                if r is None:
+                    self.plot_inner(fig = fig, inner = inner[i], pivot = pivot, label = "%s"%c, idx = idx)
+                else:
+                    self.plot_inner(fig = fig, inner = inner[i], pivot = pivot, label = "%s"%r+", %s"%c, idx = idx)
+            else:
+                pivot = pd.pivot_table(data_pivot,
+                                       columns = self.multigraph[idx],
+                                       index = self.x_axis[idx],
+                                       values = y_subplot[idx])
+                self.plot_inner(fig = fig, inner = inner[i], pivot = pivot, label = pivot.columns, idx = idx)
+            """
+            TODO: have labells everywhere
+            if self.row_title[idx] is True and col==0:
+                axs.set_ylabel("%s"%self.Columns[idx]+" \n= " +"%s"%c)
+            if self.col_title[idx] is True and row==0:
+                axs.set_title("%s"%self.Columns[idx]+" \n= "+"%s"%c)
+            #self.add_subplot_border(axs, width = 2, color = 'b')
+            """ 
     def add_subplot_border(self,ax, width=1, color=None ):
 
         fig = ax.get_figure()
