@@ -1,5 +1,7 @@
+#TODO testare che plotti ogni n step
 import math
 import pandas as pd
+import numpy as np
 #import matplotlib
 import math
 import matplotlib.pyplot as plt
@@ -65,6 +67,10 @@ class Multiplot:
         self.col_title = scenario["Col_title"]
         self.reference = scenario["Reference"]
         self.multigraph = scenario["MultiGraph"]
+        try:
+            self.subsample = scenario["subsample"]
+        except KeyError:
+            self.subsample = 1
         self.x_axis = scenario["X-axis"]
         #self.y_axis = scenario["Y-axis"]
         self.num_subplots = 1
@@ -159,7 +165,7 @@ class Multiplot:
                             col=0
                 #CODE FOR PLOTTING BY ROWS AND COLUMNS: INDEPENDENTLY    
                 else:
-                    fig,axs = self.gen_page(nrows = len(set(self.data[self.Rows[idx]])),
+                    fig,outer = self.gen_page(nrows = len(set(self.data[self.Rows[idx]])),
                                                      ncols = len(set(self.data[self.Columns[idx]])),
                                                                  idx = idx,
                                                                  page = page)
@@ -205,7 +211,8 @@ class Multiplot:
     """
     def plot_inner(self, fig, inner, pivot, label, idx):
         axs = plt.Subplot(fig, inner)
-        axs.plot(pivot.index,pivot.values,marker='.',label=label)
+        idx_plot = np.arange(0,len(pivot.index), step = self.subsample)
+        axs.plot(pivot.index[idx_plot],pivot.values[idx_plot],marker='.',label=label)
         fig.add_subplot(axs) 
         if self.vertical_lines is not None and self.vertical_lines[idx] is not None:  
             lines = self.vertical_lines[idx].split(",")
@@ -246,14 +253,15 @@ class Multiplot:
                                        index = self.x_axis[idx],
                                        values = y_subplot[idx])
                 self.plot_inner(fig = fig, inner = inner[i], pivot = pivot, label = pivot.columns, idx = idx)
+            
+            #TODO: have labells everywhere
             """
-            TODO: have labells everywhere
-            if self.row_title[idx] is True and col==0:
-                axs.set_ylabel("%s"%self.Columns[idx]+" \n= " +"%s"%c)
-            if self.col_title[idx] is True and row==0:
-                axs.set_title("%s"%self.Columns[idx]+" \n= "+"%s"%c)
+            if self.row_title[idx] == True and col==0:
+                outer.set_ylabel("%s"%self.Columns[idx]+" \n= " +"%s"%c)
+            if self.col_title[idx] == True and row==0:
+                outer.set_title("%s"%self.Columns[idx]+" \n= "+"%s"%c)
             #self.add_subplot_border(axs, width = 2, color = 'b')
-            """ 
+            """
     def add_subplot_border(self,ax, width=1, color=None ):
 
         fig = ax.get_figure()
