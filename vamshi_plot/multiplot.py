@@ -1,4 +1,3 @@
-#TODO testare che plotti ogni n step
 import math
 import pandas as pd
 import numpy as np
@@ -9,17 +8,24 @@ from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.gridspec as gridspec
 import openpyxl
 class Multiplot:
-    def __init__(self, FileInstructions):
+    def __init__(self, FileInstructions, argv = None):
+        "read the ecxel file and save the data into the attributes of the class"
         scenario = pd.read_excel(FileInstructions+".xlsx",sheet_name="scenario")
         parameters = pd.read_excel(FileInstructions+".xlsx",sheet_name="parameters")
         variables = pd.read_excel(FileInstructions+".xlsx",sheet_name="variables")
         #GET INPUT FROM PARAMETERS FILE
         field = parameters["Field"]
         value = parameters["Value"]
-        PATH_IP = value[list(field).index("Input_data_dir")]
-        FileData = value[list(field).index("Input_data")]
-        PATH_OP = value[list(field).index("Save_into")]
-        pdf_name = value[list(field).index("Pdf_name")]
+        if argv is None:
+            PATH_IP = value[list(field).index("Input_data_dir")]
+            FileData = value[list(field).index("Input_data")]
+            PATH_OP = value[list(field).index("Save_into")]
+            pdf_name = value[list(field).index("Pdf_name")]
+        else:
+            PATH_IP = argv[1]
+            FileData = argv[2]
+            PATH_OP = argv[1]
+            pdf_name = argv[2]
         self.width = value[list(field).index("Width")]
         self.hieght = value[list(field).index("Hieght")]
         #GET INPUT FROM SCENARIO FILE
@@ -39,6 +45,9 @@ class Multiplot:
         for el in scenario.columns:
             if el == "Select" +str(self.num_selection+1):
                 self.num_selection+=1
+        """
+        Select and the others are lists(they could be an objects) because we want to have n possible selection
+        """
         self.select = []
         self.value = []
         self.range_select_min = []
@@ -68,6 +77,10 @@ class Multiplot:
         self.reference = scenario["Reference"]
         self.multigraph = scenario["MultiGraph"]
         try:
+            #TODO da estendere a select!
+            """
+            show once every n step
+            """
             self.subsample = scenario["subsample"]
         except KeyError:
             self.subsample = 1
@@ -77,6 +90,9 @@ class Multiplot:
         self.y_subplots = []
         self.y_subplots.append(scenario["Y-axis"])
         for el in scenario.columns:
+            """
+            I could want to have multiple graph to show on a single step.
+            """
             if el == "Y-axis" +str(self.num_subplots+1):
                 self.num_subplots+=1
         for i in range(self.num_subplots):
@@ -103,14 +119,20 @@ class Multiplot:
         self.pdf = PdfPages(PATH_OP+pdf_name+".pdf")
         self.plot()   
     def read_data(self, filename = None, data_numpy = None, data_titles = None):
+        """
+        If we override self.read_data into the function that we want we can use this program to plot from any source
+        """
         if filename is not None:
             #TODO mettere caso excel
-            return pd.read_csv(filename,delimiter=",")
+            return pd.read_csv(filename,delimiter="\t")
             #TODO ricorda che deve essere giusto il delimiter
         if data_numpy is not None and data_titles is not None:
             return pd.DataFrame(data_numpy, columns = data_titles)
         raise TypeError("you must enter some data to be parsed")
     def select_data(self, data_in, select, value = '', range_select_min = '', range_select_max = ''):
+        """
+        Selects the data in a given range.
+        """
         if pd.isnull(select):
             return data_in
         if not math.isnan(value):
@@ -124,7 +146,9 @@ class Multiplot:
                 
         raise TypeError("you must enter a value or range to be selected")
     def plot(self):
-        
+        """
+        It retrives the data, using pivot tables with the specifiers given in the init it generates the plot.
+        """
         for idx in self.index:
             
             if self.page[idx] == " ":
@@ -187,6 +211,9 @@ class Multiplot:
                 plt.clf()
         self.pdf.close()
     def gen_page(self,nrows, ncols, idx, page):
+        """
+        Generates the plot structure.
+        """
         fig = plt.figure(figsize=(self.width,self.hieght))
         if len(self.y_subplots)>1:
             space = 0.1
@@ -210,9 +237,13 @@ class Multiplot:
         return range_low & range_high
     """
     def plot_inner(self, fig, inner, pivot, label, idx):
+        """
+        Plots the data.
+        """
         axs = plt.Subplot(fig, inner)
         idx_plot = np.arange(0,len(pivot.index), step = self.subsample)
         axs.plot(pivot.index[idx_plot],pivot.values[idx_plot],marker='.',label=label)
+        self.plot_reference(axs)
         fig.add_subplot(axs) 
         if self.vertical_lines is not None and self.vertical_lines[idx] is not None:  
             lines = self.vertical_lines[idx].split(",")
@@ -236,6 +267,9 @@ class Multiplot:
             axs.set_xlim(left = min_x, right = max_x)
                 
     def plot_single(self, data_pivot, outer, fig, c, idx, col, row, r = None):
+        """
+        Selects the data to be plot in a single quadrant.
+        """
         inner = gridspec.GridSpecFromSubplotSpec(len(self.y_subplots), 1,
                     subplot_spec=outer, wspace=0, hspace=0)
         for i, y_subplot in enumerate(self.y_subplots):
@@ -255,13 +289,32 @@ class Multiplot:
                 self.plot_inner(fig = fig, inner = inner[i], pivot = pivot, label = pivot.columns, idx = idx)
             
             #TODO: have labells everywhere
-            """
+
+            
             if self.row_title[idx] == True and col==0:
-                outer.set_ylabel("%s"%self.Columns[idx]+" \n= " +"%s"%c)
+                self.set_ylabel(fig = fig, text = "%s"%self.Columns[idx]+" \n= " +"%s"%c, row = row, outer = outer)
+                #outer.set_ylabel("%s"%self.Columns[idx]+" \n= " +"%s"%c)
+            
             if self.col_title[idx] == True and row==0:
-                outer.set_title("%s"%self.Columns[idx]+" \n= "+"%s"%c)
+                self.set_xlabel(fig = fig, text = "%s"%self.Columns[idx]+" \n= " +"%s"%c, col = col, outer = outer)
+                #outer.set_title("%s"%self.Columns[idx]+" \n= "+"%s"%c)
             #self.add_subplot_border(axs, width = 2, color = 'b')
-            """
+            
+            
+    def set_ylabel(self, fig, text, row, outer):
+        nrows = outer._gridspec._nrows
+        step = (900 - (110+93))/900
+        step/= nrows
+        off = 93/900
+        pos = (nrows - row)*step  - step/2  + off
+        fig.text(0.07, pos, text, va='center', rotation='vertical')
+    def set_xlabel(self, fig, text, col, outer):
+        ncols = outer._gridspec.ncols
+        step = (1407 - (150+140))/1407
+        step/= ncols
+        off = 140/900
+        pos = ( col)*step    + off
+        fig.text(pos, 0.9, text, va='center')
     def add_subplot_border(self,ax, width=1, color=None ):
 
         fig = ax.get_figure()
@@ -285,4 +338,5 @@ class Multiplot:
         fig.patches.append(rect)  
     def remove_duplicate_order_list(self, el):
         return sorted(list(set(el)))
-
+    def plot_reference(self, axs):
+        pass
