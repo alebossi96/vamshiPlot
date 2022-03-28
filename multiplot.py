@@ -124,7 +124,7 @@ class Multiplot:
         """
         if filename is not None:
             #TODO mettere caso excel
-            return pd.read_csv(filename,delimiter="\t")
+            return pd.read_csv(filename,delimiter=",")
             #TODO ricorda che deve essere giusto il delimiter
         if data_numpy is not None and data_titles is not None:
             return pd.DataFrame(data_numpy, columns = data_titles)
