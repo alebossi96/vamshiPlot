@@ -1,6 +1,7 @@
 import math
 import pandas as pd
 import numpy as np
+from vamshiPlot import core
 class ReadInstruction:
     def __init__(self, file_instruction):
         #read what to plot
@@ -27,32 +28,10 @@ class ReadInstruction:
             if el == "Select" +str(self.num_selection+1):
                 self.num_selection+=1
         #Select and the others are lists(they could be an objects) because we want to have n possible selection
-        self.select = []
-        self.value = []
-        self.range_select_min = []
-        self.range_select_max = []
-        self.subsample = []
+        sfi_tmp = []
         for i in range(self.num_selection):
-            for el in scenario.columns:
-                if "Select"+str(i+1) == el:
-                    self.select.append(scenario["Select"+str(i+1)])
-                elif "Value"+str(i+1) == el:
-                    self.value.append( scenario["Value"+str(i+1)])
-                elif "Range_min"+str(i+1) == el:
-                    self.range_select_min.append(scenario["Range_min"+str(i+1)])
-                elif "Range_max"+str(i+1) == el:
-                    self.range_select_max.append(scenario["Range_max"+str(i+1)])
-                elif "Subsample"+str(i+1) == el:
-                    self.subsample.append(scenario["Subsample"+str(i+1)])
-                
-            if len(self.select)> len(self.value):
-                self.value.append(['']*len(self.index))
-            if len(self.select)> len(self.range_select_min):
-                self.range_select_min.append(['']*len(self.index))
-            if len(self.select)> len(self.range_select_max):
-                self.range_select_max.append(['']*len(self.index))
-            if len(self.select)> len(self.subsample):
-                self.subsample.append([1]*len(self.index))
+            sfi_tmp.append(core.SelectionFromInstruction(i, scenario.columns, scenario))
+        self.sfi = core.invert_selection_instr(sfi_tmp)
         self.rows = scenario["Rows"]
         self.columns = scenario["Columns"]
         self.row_title = scenario["Row_title"]
@@ -117,33 +96,16 @@ class ReadInstruction:
     def refactor_data(self, idx):
         data = self.data
         for i in range(self.num_selection):
-            data = self.select_data(data, idx, i)
+            data = self.select_data(data, idx)
         return data
-    def select_data(self,data, idx, i):
+    def select_data(self,data, idx):
         """
         Selects the data in a given range.
         per ora funziona solo uno alla volta
         """
-        if pd.isnull(self.select[idx][i]):
-            return data
-        if self.subsample[idx][i] != 1 :
-            pivot = pd.pivot_table(data,index=[self.select[idx]])
-            index = pivot[self.select[idx]]
-            subsampling = np.arange(0,len(pivot), self.subsample[idx][i])
-            data = data[index == index[subsampling]]
-            return data
-            
-        if self.value[idx][i] != '':
-            return data[data[self.select[idx][i]]==self.value[idx][i]]
-        if self.range_select_min[idx][i] != '' and self.range_select_max[idx][i] != '':
-            return data[(data[self.select[idx][i]]>self.range_select_min[idx][i]) & (data[self.select[idx][i]]<self.range_select_max[idx][i])]
-        if self.range_select_min[idx][i] != '':
-            return data[data[self.select[idx][i]]>self.range_select_min[idx][i]]
-        if self.range_select_max[idx][i] != '':
-            return data[data[self.select[idx][i]]<self.range_select_max[idx][i]]
-                
-        raise TypeError("you must enter a value or range to be selected")
-
+        for sel in self.sfi[idx]:
+            data = sel.select_data(data)
+        return data
 class GetDataFromTXT(ReadInstruction):
     def __init__(self, file_instruction):
         parameters = pd.read_excel(file_instruction+".xlsx",sheet_name="parameters")
