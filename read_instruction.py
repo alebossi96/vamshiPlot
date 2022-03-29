@@ -20,7 +20,7 @@ class ReadInstruction:
         self.width = value[list(field).index("Width")]
         self.hieght = value[list(field).index("Hieght")]
         #GET INPUT FROM SCENARIO FILE
-        self.index = scenario["Section"]
+        self.length = len(scenario)
         self.page = scenario["Page"]
         self.title = scenario["Title"]
         self.num_selection = 0
@@ -96,13 +96,14 @@ class ReadInstruction:
     def refactor_data(self, idx):
         data = self.data
         for i in range(self.num_selection):
-            data = self.select_data(data, idx)
+            data = self.select_data(idx)
         return data
-    def select_data(self,data, idx):
+    def select_data(self, idx):
         """
         Selects the data in a given range.
         per ora funziona solo uno alla volta
         """
+        data = self.data
         for sel in self.sfi[idx]:
             data = sel.select_data(data)
         return data

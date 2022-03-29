@@ -39,25 +39,19 @@ class Selection:
             self.subsample = sfi.subsample[idx]
     def select_data(self, data):
         """
-        Deve essere solo una delle 4!
+        Deve essere solo una delle 4?
         """
-        """
+        
         if self.subsample is not None :
-            
-            pivot = pd.pivot_table(data,index=[self.select])
-            index = pivot.index
-            subsampling = np.arange(0,len(pivot), self.subsample)
-            to_take = [False]*len(data[self.select])
-            for sub_smpl in range(len(subsampling)):
-                tmp = [data[self.select][i] == index[subsampling[sub_smpl]] for i in range(len(to_take)) ]
-                to_take = [to_take[i] == tmp[i] for i in range(len(to_take))] 
-            data = data[to_take]
-            
-            
-            delta = 1
-            pivot = pd.pivot_table(data,index=[self.select])
-            data = data.groupby(self.select).nth(slice(0,None, self.subsample*delta))
-        """
+            group_by_select = by_wl = data.groupby(self.select)
+            index = pd.pivot_table(data, index = self.select).index
+            list_group = []
+            to_get = np.arange(0, len(index), self.subsample)
+            index_to_get = index[to_get]
+            for idx, frame in by_wl:
+            if idx in index_to_get:
+                new.append(frame)
+            data = pd.concat(new,sort=False)
         if self.value is not None:
             data = data[data[self.select]==self.value]
         if self.range_select_min is not None and self.range_select_max is not None:
@@ -66,7 +60,7 @@ class Selection:
             data = data[data[self.select]>self.range_select_min]
         if self.range_select_max is not None:
             data =  data[data[self.select]<self.range_select_max]
-        return data
+        return data.sort_index().reset_index()
 def invert_selection_instr(sfi):
     i_len = len(sfi)
     idx_len = len(sfi[0].select)
@@ -78,4 +72,4 @@ def invert_selection_instr(sfi):
                 sel_el.append(Selection(sfi[i], idx))
         sel.append(sel_el)
     return sel
-           
+
