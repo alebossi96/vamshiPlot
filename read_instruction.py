@@ -18,7 +18,7 @@ class ReadInstruction:
         self.output_name = path_op + pdf_name
         #forse le dovrei mettere come costanti fuori da qui
         self.width = value[list(field).index("Width")]
-        self.hieght = value[list(field).index("Hieght")]
+        self.height = value[list(field).index("Hieght")]
         #GET INPUT FROM SCENARIO FILE
         self.length = len(scenario)
         self.page = scenario["Page"]
@@ -108,16 +108,17 @@ class ReadInstruction:
             data = sel.select_data(data)
         return data
 class GetDataFromTXT(ReadInstruction):
-    def __init__(self, file_instruction):
+    def __init__(self, file_instruction, delimiter = ","):
         parameters = pd.read_excel(file_instruction+".xlsx",sheet_name="parameters")
         field = parameters["Field"]
         value = parameters["Value"]
         PATH_IP = value[list(field).index("Input_data_dir")]
         FileData = value[list(field).index("Input_data")]
         self.data_pos = PATH_IP+FileData
+        self.delimiter = delimiter
         super().__init__(file_instruction)
     def get_data(self):
-        return pd.read_csv(self.data_pos+".txt", delimiter =',')#magari devo leggere
+        return pd.read_csv(self.data_pos+".txt", delimiter = self.delimiter)#magari devo leggere
 class GetDataNumpy(ReadInstruction):
     def __init__(self, file_instruction, data_numpy, data_titles):
         self.data_numpy = data_numpy

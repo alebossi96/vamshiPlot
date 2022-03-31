@@ -41,16 +41,18 @@ class Selection:
         """
         Deve essere solo una delle 4?
         """
-        
+        if pd.isna(self.select):
+            return data
         if self.subsample is not None :
-            group_by_select = by_wl = data.groupby(self.select)
+            by_wl = data.groupby(self.select)
             index = pd.pivot_table(data, index = self.select).index
             list_group = []
             to_get = np.arange(0, len(index), self.subsample)
             index_to_get = index[to_get]
+            new = []
             for idx, frame in by_wl:
-            if idx in index_to_get:
-                new.append(frame)
+                if idx in index_to_get:
+                    new.append(frame)
             data = pd.concat(new,sort=False)
         if self.value is not None:
             data = data[data[self.select]==self.value]
