@@ -62,8 +62,16 @@ class ReadInstruction:
                 if "Y-axis"+str(i+1) == el:
                     self.y_subplots.append(scenario["Y-axis"+str(i+1)])
         self.y_scale = scenario["Scale"]
-        self.y_lower = scenario["Y-lower"]
-        self.y_upper = scenario["Y-upper"]
+        self.y_lower = []#scenario["Y-lower"]
+        self.y_upper = []#scenario["Y-upper"]
+        self.y_lower.append(scenario["Y-lower"])
+        self.y_upper.append(scenario["Y-upper"])
+        for i in range(self.num_subplots):
+            for el in scenario.columns:
+                if "Y-lower"+str(i+1) == el:
+                    self.y_lower.append(scenario["Y-lower"+str(i+1)])
+                if "Y-upper"+str(i+1) == el:
+                    self.y_upper.append(scenario["Y-upper"+str(i+1)])
         #Se voglio mettere cose a dx devo comunque lasciare lon stesso asse x!
         try:
             self.y_right = scenario["Y-axis-right"]

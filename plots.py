@@ -123,14 +123,14 @@ class Plots:
                 pivot = pd.pivot_table(data_pivot,
                                        index = self.instr.x_axis[idx],
                                        values = y_subplot[idx])
-                self.plot_inner(pivot = pivot, label = tmp_label, idx = idx,  axs = self.mp.axs[i_row][i_col][i])
+                self.plot_inner(pivot = pivot, label = tmp_label, idx = idx,  axs = self.mp.axs[i_row][i_col][i], i = i)
             else:
                 pivot = pd.pivot_table(data_pivot,
                                        columns = self.instr.multigraph[idx],
                                        index = self.instr.x_axis[idx],
                                        values = y_subplot[idx])
-                self.plot_inner(pivot = pivot, label = pivot.columns, idx = idx,  axs = self.mp.axs[i_row][i_col][i])
-    def plot_inner(self, pivot, label, idx, axs):
+                self.plot_inner(pivot = pivot, label = pivot.columns, idx = idx,  axs = self.mp.axs[i_row][i_col][i], i = i)
+    def plot_inner(self, pivot, label, idx, axs, i):
         axs.plot(pivot.index, pivot.values, marker='.', label=label)
         if self.instr.vertical_lines is not None and self.instr.vertical_lines[idx] is not None:  
             lines = self.instr.vertical_lines[idx].split(",")
@@ -139,10 +139,10 @@ class Plots:
         axs.grid(axis='both',which='major')
         axs.tick_params(axis="both",which="major",direction="in",labelsize=4)
         axs.legend(loc=0,fontsize=7)
-        if self.instr.y_lower is not None and pd.notnull(self.instr.y_lower[idx]):#Y-limits
-            axs.set_ylim(bottom = self.instr.y_lower[idx])
-        if self.instr.y_upper is not None and pd.notnull(self.instr.y_upper[idx]):#Y-limits
-            axs.set_ylim(top = self.instr.y_upper[idx])
+        if self.instr.y_lower[i] is not None and pd.notnull(self.instr.y_lower[i][idx]):#Y-limits
+            axs.set_ylim(bottom = self.instr.y_lower[i][idx])
+        if self.instr.y_upper[i] is not None and pd.notnull(self.instr.y_upper[i][idx]):#Y-limits
+            axs.set_ylim(top = self.instr.y_upper[i][idx])
         if self.instr.x_start is not None and pd.notnull(self.instr.x_start[idx]):
             axs.set_xlim(left = self.instr.x_start[idx])
         if self.instr.x_stop is not None and pd.notnull(self.instr.x_stop[idx]):
