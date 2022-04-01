@@ -83,7 +83,7 @@ class Plots:
                 else:
                     n_rows = len(set(data[self.instr.rows[idx]]))
                     n_cols = len(set(data[self.instr.columns[idx]]))
-                self.mp = NormalSubplot(width= self.instr.width, height = self.instr.height, n_rows = n_rows, n_cols = n_cols, n_subplots = self.instr.num_subplots)
+                self.mp = MultiMultiplot(width= self.instr.width, height = self.instr.height, n_rows = n_rows, n_cols = n_cols, n_subplots = self.instr.num_subplots)
                 i_col = 0
                 i_row = 0
                 if not skip_pages:

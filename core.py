@@ -1,6 +1,13 @@
 import math
 import pandas as pd
 import numpy as np
+import csv
+
+def get_delimiter(file_path):
+    sniffer = csv.Sniffer()
+    with open(file_path, "r") as f:
+        for line in f:
+            return sniffer.sniff(line).delimiter
 class SelectionFromInstruction:
     def __init__(self, i, column, scenario):
         self.select = None

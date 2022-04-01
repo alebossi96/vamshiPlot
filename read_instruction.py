@@ -2,6 +2,7 @@ import math
 import pandas as pd
 import numpy as np
 from vamshiPlot import core
+from vamshiPlot import refactor
 class ReadInstruction:
     def __init__(self, file_instruction):
         #read what to plot
@@ -11,14 +12,14 @@ class ReadInstruction:
         #change names
         variables = pd.read_excel(file_instruction+".xlsx",sheet_name="variables")
         #GET INPUT FROM PARAMETERS FILE
-        field = parameters["Field"]
-        value = parameters["Value"]
-        path_op = value[list(field).index("Save_into")]
-        pdf_name = value[list(field).index("Pdf_name")]
+        #field = parameters["Field"]
+        #value = parameters["Value"]
+        path_op = parameters["Save_into"][0]#value[list(field).index("Save_into")]
+        pdf_name = parameters["Pdf_name"][0]#value[list(field).index("Pdf_name")]
         self.output_name = path_op + pdf_name
         #forse le dovrei mettere come costanti fuori da qui
-        self.width = value[list(field).index("Width")]
-        self.height = value[list(field).index("Hieght")]
+        self.width = parameters["Width"][0]# value[list(field).index("Width")]
+        self.height = parameters["Height"][0]#value[list(field).index("Height")]
         #GET INPUT FROM SCENARIO FILE
         self.length = len(scenario)
         self.page = scenario["Page"]
@@ -54,7 +55,7 @@ class ReadInstruction:
         self.y_subplots.append(scenario["Y-axis"])
         for el in scenario.columns:
             #I could want to have multiple graph to show on a single step.
-            if el == "Y-axis" +str(self.num_subplots+1):
+            if el == "Y-axis" +str(self.num_subplots):
                 self.num_subplots+=1
         for i in range(self.num_subplots):
             for el in scenario.columns:
@@ -110,15 +111,32 @@ class ReadInstruction:
 class GetDataFromTXT(ReadInstruction):
     def __init__(self, file_instruction, delimiter = ","):
         parameters = pd.read_excel(file_instruction+".xlsx",sheet_name="parameters")
-        field = parameters["Field"]
-        value = parameters["Value"]
-        PATH_IP = value[list(field).index("Input_data_dir")]
-        FileData = value[list(field).index("Input_data")]
-        self.data_pos = PATH_IP+FileData
+        #field = parameters["Field"]
+        #value = parameters["Value"]
+        self.PATH_IP = parameters["Input_data_dir"][0]#value[list(field).index("Input_data_dir")]
+        self.file_data = parameters["Input_data"] #value[list(field).index("Input_data")]
+        if len(self.file_data)>1:
+            self.axis_merge = parameters["Axis_merge"]
+        try:
+            self.refactor = parameters["Refactor"]
+        except:
+            self.refactor = None
+        #self.data_pos = PATH_IP+FileData
         self.delimiter = delimiter
         super().__init__(file_instruction)
     def get_data(self):
-        return pd.read_csv(self.data_pos+".txt", delimiter = self.delimiter)#magari devo leggere
+        data_pos = self.PATH_IP+ self.file_data[0]
+        df = pd.read_csv(data_pos, delimiter = core.get_delimiter(data_pos))
+        if len(self.file_data) == 1:
+            return df
+        for i in range(1,len(self.file_data)):
+            data_pos = self.PATH_IP+self.file_data[i]
+            new = pd.read_csv(data_pos, delimiter = core.get_delimiter(data_pos))
+            if self.refactor is not None and self.refactor.notnull()[i]:
+                new = getattr(refactor, self.refactor[i])(new, self.axis_merge[i])
+            df = df.merge(new, on = self.axis_merge[i], how= "inner")#magari devo leggere
+        return df
+
 class GetDataNumpy(ReadInstruction):
     def __init__(self, file_instruction, data_numpy, data_titles):
         self.data_numpy = data_numpy
