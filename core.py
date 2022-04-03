@@ -3,6 +3,10 @@ import pandas as pd
 import numpy as np
 import csv
 
+class Context:
+    def __init__(self):
+        pass
+
 def get_delimiter(file_path):
     sniffer = csv.Sniffer()
     with open(file_path, "r") as f:

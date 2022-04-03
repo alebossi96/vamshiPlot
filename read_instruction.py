@@ -38,7 +38,8 @@ class ReadInstruction:
         self.row_title = scenario["Row_title"]
         self.col_title = scenario["Col_title"]
         self.reference = scenario["Reference"]
-        self.multigraph = scenario["MultiGraph"]
+        self.multigraph = []
+        self.multigraph.append(scenario["MultiGraph"])
         self.x_axis = scenario["X-axis"]
         try:
             self.x_start = scenario["Range_init_x"]
@@ -52,7 +53,11 @@ class ReadInstruction:
         #self.y_axis = scenario["Y-axis"]
         self.num_subplots = 1
         self.y_subplots = []
-        self.y_subplots.append(scenario["Y-axis"])
+        y_axs = scenario["Y-axis"]
+        y_axs_tmp = []
+        for i in range(len(y_axs)):
+            y_axs_tmp.append(scenario["Y-axis"][i].split(","))
+        self.y_subplots.append(y_axs_tmp)
         for el in scenario.columns:
             #I could want to have multiple graph to show on a single step.
             if el == "Y-axis" +str(self.num_subplots):
@@ -60,7 +65,12 @@ class ReadInstruction:
         for i in range(self.num_subplots):
             for el in scenario.columns:
                 if "Y-axis"+str(i+1) == el:
-                    self.y_subplots.append(scenario["Y-axis"+str(i+1)])
+                    y_axs_tmp = []
+                    for j in range(len(y_axs)):
+                        y_axs_tmp.append(scenario["Y-axis"+str(i+1)][j].split(","))
+                    self.y_subplots.append(y_axs_tmp)
+                elif "MultiGraph"+str(i+1) == el:
+                    self.multigraph.append(scenario["MultiGraph"+str(i+1)])#TODO attenzione è invertito!!
         self.y_scale = scenario["Scale"]
         self.y_lower = []#scenario["Y-lower"]
         self.y_upper = []#scenario["Y-upper"]
