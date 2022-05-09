@@ -32,14 +32,15 @@ class Plots:
                     n_rows = int(math.sqrt(single_el))
                     n_cols = math.ceil(single_el/n_rows)
                 else:
-                    n_rows = len(set(data[self.instr.rows[self.context.idx]]))
-                    n_cols = len(set(data[self.instr.columns[self.context.idx]]))
+                    n_rows = len(set(self.data[self.instr.rows[self.context.idx]]))
+                    n_cols = len(set(self.data[self.instr.columns[self.context.idx]]))
                 self.mp = mp.MultiMultiplot(width= self.instr.width, height = self.instr.height, n_rows = n_rows, n_cols = n_cols, n_subplots = self.instr.num_subplots)
                 i_col = 0
                 i_row = 0
                 if not self.context.skip_pages:
                     data = self.data[(self.data[self.instr.page[self.context.idx]]==self.context.page)]
                 for self.context.col,self.context.c in enumerate(self.remove_duplicate_order_list(self.data[self.instr.columns[self.context.idx]])):
+                    print(self.context.c)
                     data = self.data[(self.data[self.instr.columns[self.context.idx]]==self.context.c)]
                     xlabel = "%s"%self.instr.columns[self.context.idx]+" \n= " +"%s"%self.context.c
                     if pd.isnull(self.instr.rows[self.context.idx]):
@@ -49,9 +50,10 @@ class Plots:
                         ylabel = xlabel
 
                     else:
-                        for self.context.row,self.context.r in enumerate(self.remove_duplicate_order_list(data[self.instr.columns[self.context.idx]])):
+                        for self.context.row,self.context.r in enumerate(self.remove_duplicate_order_list(data[self.instr.rows[self.context.idx]])):
+                            print(self.context.r, self.context.c)
                             self.plot_in_grid(data_pivot = data[(data[self.instr.rows[self.context.idx]]==self.context.r)],
-                                                    axs = self.mp.axs[i_row][i_col],
+                                                    axs = self.mp.axs[self.context.row][self.context.col],
                                             tmp_label = "%s"%self.context.r+", %s"%self.context.c)
                             ylabel = "%s"%self.instr.rows[self.context.idx]+" \n= " +"%s"%self.context.r
                     if i_col == 0:
