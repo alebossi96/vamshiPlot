@@ -34,12 +34,13 @@ class Plots:
                 else:
                     n_rows = len(set(self.data[self.instr.rows[self.context.idx]]))
                     n_cols = len(set(self.data[self.instr.columns[self.context.idx]]))
-                self.mp = mp.MultiMultiplot(width= self.instr.width, height = self.instr.height, n_rows = n_rows, n_cols = n_cols, n_subplots = self.instr.num_subplots)
+                self.mp = mp.MultiMultiplot(width= self.instr.width, height = self.instr.height, n_rows = n_rows, n_cols = n_cols, n_subplots = self.instr.num_subplots)#MultiMultiplot#NormalSubplot
                 i_col = 0
                 i_row = 0
                 if not self.context.skip_pages:
                     data = self.data[(self.data[self.instr.page[self.context.idx]]==self.context.page)]
                 for self.context.col,self.context.c in enumerate(self.remove_duplicate_order_list(self.data[self.instr.columns[self.context.idx]])):
+                    print("row",i_row)
                     print(self.context.c)
                     data = self.data[(self.data[self.instr.columns[self.context.idx]]==self.context.c)]
                     xlabel = "%s"%self.instr.columns[self.context.idx]+" \n= " +"%s"%self.context.c
@@ -48,7 +49,14 @@ class Plots:
                                            axs = self.mp.axs[i_row][i_col],
                                            tmp_label = "%s"%self.context.c)
                         ylabel = xlabel
-
+                        if i_col == 0:
+                            self.mp.axs[i_row][0][0].set_ylabel(ylabel)
+                        if i_row == 0:
+                            self.mp.axs[0][i_col][0].set_title(xlabel)
+                        i_col+=1
+                        if i_col == n_cols:
+                            i_col = 0
+                            i_row+=1
                     else:
                         for self.context.row,self.context.r in enumerate(self.remove_duplicate_order_list(data[self.instr.rows[self.context.idx]])):
                             print(self.context.r, self.context.c)
@@ -56,20 +64,19 @@ class Plots:
                                                     axs = self.mp.axs[self.context.row][self.context.col],
                                             tmp_label = "%s"%self.context.r+", %s"%self.context.c)
                             ylabel = "%s"%self.instr.rows[self.context.idx]+" \n= " +"%s"%self.context.r
-                    if i_col == 0:
-                        self.mp.axs[i_row][0][0].set_ylabel(ylabel)
-                    if i_row == 0:
-                        self.mp.axs[0][i_col][0].set_title(xlabel)
-                    i_col+=1
-                    if i_col == n_cols:
-                        i_col = 0
-                        i_row+=1
-                plt.tight_layout()
+                            if i_col == 0:
+                                self.mp.axs[self.context.row][0][0].set_ylabel(ylabel)
+                            if i_row == 0:
+                                self.mp.axs[0][self.context.col][0].set_title(xlabel)
+                    if self.instr.single_legend.iloc[self.context.idx]:
+                       self.mp.axs[-1][-1][0].legend(loc=(1.04,len(self.mp.axs)*0.9),fontsize=15)
+                    
+                
                 if self.context.skip_pages:
                     self.set_labels()
                 else:
                     self.set_labels(page = self.context.page)
-                
+                plt.tight_layout()
                 plt.show()
                 self.pdf.savefig(self.mp.fig)
                 plt.clf()
@@ -90,7 +97,8 @@ class Plots:
     def plot_inner(self, pivot, label, axs):
         #axs.plot(pivot.index, pivot.values, marker='.', label=label)
         axs.plot(pivot.index, pivot.values, label=label)
-        axs.legend(loc=1,fontsize=7) #TODO magari 0
+        if self.instr.single_legend is not None and not self.instr.single_legend.iloc[self.context.idx]:
+            axs.legend(loc=1,fontsize=7) #TODO magari 0
         if self.instr.vertical_lines is not None and self.instr.vertical_lines[self.context.idx] is not None:  
             lines = self.instr.vertical_lines[self.context.idx].split(",")
             for line in lines:

@@ -103,6 +103,10 @@ class ReadInstruction:
         except:
             self.y_upper_right = None
         try:
+            self.single_legend = scenario["Single-legend"]
+        except:
+            self.single_legend = None
+        try:
             self.vertical_lines = scenario["Vertical_lines"]
         except KeyError:
             self.vertical_lines = None

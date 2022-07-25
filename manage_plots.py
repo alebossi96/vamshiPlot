@@ -18,7 +18,7 @@ class BasePlot:
             for j in range(self.n_cols):
                 for k in range(self.n_subplots):
                     self.axs[i][j][k].grid(axis='both',which='major')
-                    self.axs[i][j][k].tick_params(axis="both",which="major",direction="in",labelsize=4)
+                    self.axs[i][j][k].tick_params(axis="both",which="major",direction="in",labelsize=10)
 class MultiMultiplot(BasePlot):
     def gen_fig(self):
         self.fig = plt.figure(figsize=(self.width, self.height))
@@ -38,6 +38,8 @@ class MultiMultiplot(BasePlot):
                 cont+=1
                 for sp in range(self.n_subplots):
                     axs = plt.Subplot(self.fig, inner[sp])
+                    if col>0:
+                        axs.tick_params(labelleft=False, left=False)
                     self.fig.add_subplot(axs)
                     sp_axs.append(axs)
                 col_axs.append(sp_axs)
@@ -67,5 +69,6 @@ class NormalSubplot(BasePlot):
         for i in range(self.n_rows):
             axs_col = []
             for j in range(self.n_cols):
+                axs[i,j].xaxis.set_tick_params(labelsize=50)
                 axs_col.append([axs[i,j]])
             self.axs.append(axs_col)
