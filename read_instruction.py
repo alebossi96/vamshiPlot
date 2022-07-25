@@ -14,7 +14,10 @@ class ReadInstruction:
         #GET INPUT FROM PARAMETERS FILE
         #field = parameters["Field"]
         #value = parameters["Value"]
-        path_op = parameters["Save_into"][0]#value[list(field).index("Save_into")]
+        if parameters["Save_into"] is not None and parameters["Save_into"].notnull()[0]:
+            path_op = parameters["Save_into"][0]#value[list(field).index("Save_into")]
+        else:
+            path_op = ""
         pdf_name = parameters["Pdf_name"][0]#value[list(field).index("Pdf_name")]
         self.output_name = path_op + pdf_name
         #forse le dovrei mettere come costanti fuori da qui
@@ -131,7 +134,10 @@ class GetDataFromTXT(ReadInstruction):
         parameters = pd.read_excel(file_instruction+".xlsx",sheet_name="parameters")
         #field = parameters["Field"]
         #value = parameters["Value"]
-        self.PATH_IP = parameters["Input_data_dir"][0]#value[list(field).index("Input_data_dir")]
+        if parameters["Input_data_dir"] is not None and parameters["Input_data_dir"].notnull()[0]:
+            self.PATH_IP = parameters["Input_data_dir"][0]
+        else:
+            self.PATH_IP = ""
         self.file_data = parameters["Input_data"] #value[list(field).index("Input_data")]
         if len(self.file_data)>1:
             self.axis_merge = parameters["Axis_merge"]
@@ -145,6 +151,7 @@ class GetDataFromTXT(ReadInstruction):
     def get_data(self):
         data_pos = self.PATH_IP+ self.file_data[0]
         df = pd.read_csv(data_pos, delimiter = core.get_delimiter(data_pos))
+        df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
         if len(self.file_data) == 1:
             return df
         for i in range(1,len(self.file_data)):

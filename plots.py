@@ -64,10 +64,12 @@ class Plots:
                     if i_col == n_cols:
                         i_col = 0
                         i_row+=1
+                plt.tight_layout()
                 if self.context.skip_pages:
                     self.set_labels()
                 else:
                     self.set_labels(page = self.context.page)
+                
                 plt.show()
                 self.pdf.savefig(self.mp.fig)
                 plt.clf()
@@ -86,7 +88,8 @@ class Plots:
                                            values = y_subplot[self.context.idx][self.context.j])
                     self.plot_inner(pivot = pivot, label = pivot.columns,  axs = axs[self.context.i])
     def plot_inner(self, pivot, label, axs):
-        axs.plot(pivot.index, pivot.values, marker='.', label=label)
+        #axs.plot(pivot.index, pivot.values, marker='.', label=label)
+        axs.plot(pivot.index, pivot.values, label=label)
         axs.legend(loc=1,fontsize=7) #TODO magari 0
         if self.instr.vertical_lines is not None and self.instr.vertical_lines[self.context.idx] is not None:  
             lines = self.instr.vertical_lines[self.context.idx].split(",")

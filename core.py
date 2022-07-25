@@ -73,7 +73,12 @@ class Selection:
             data = data[data[self.select]>self.range_select_min]
         if self.range_select_max is not None:
             data =  data[data[self.select]<self.range_select_max]
-        return data.sort_index().reset_index()
+        df = data.sort_index().reset_index()
+        if 'index' in df.columns:
+            del df['index']
+        if 'level_0' in df.columns:
+            del df['level_0']
+        return df
 def invert_selection_instr(sfi):
     i_len = len(sfi)
     idx_len = len(sfi[0].select)
