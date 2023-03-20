@@ -49,7 +49,7 @@ class Plots:
                                            axs = self.mp.axs[i_row][i_col],
                                            tmp_label = "%s"%self.context.c)
                         ylabel = xlabel
-                        if i_col == 0:
+                        if i_col == 0 and len(self.mp.axs)>1:
                             self.mp.axs[i_row][0][0].set_ylabel(ylabel)
                         if i_row == 0:
                             self.mp.axs[0][i_col][0].set_title(xlabel)
@@ -68,8 +68,8 @@ class Plots:
                                 self.mp.axs[self.context.row][0][0].set_ylabel(ylabel)
                             if i_row == 0:
                                 self.mp.axs[0][self.context.col][0].set_title(xlabel)
-                    if self.instr.single_legend.iloc[self.context.idx]:
-                       self.mp.axs[-1][-1][0].legend(loc=(1.04,len(self.mp.axs)*0.9),fontsize=15)
+                    if self.instr.single_legend is not None and self.instr.single_legend.iloc[self.context.idx]:
+                       self.mp.axs[-1][-1][0].legend(loc=(1.01,len(self.mp.axs)*0.9),fontsize=13)
                     
                 
                 if self.context.skip_pages:
@@ -86,18 +86,29 @@ class Plots:
             for self.context.j in range(len(y_subplot[self.context.idx])):
                 if pd.isnull(self.instr.multigraph[self.context.i][self.context.idx]):#reshape dataframe for multiplot
                     pivot = pd.pivot_table(data_pivot, index = self.instr.x_axis[self.context.idx], values = y_subplot[self.context.idx][self.context.j])
-                    self.plot_inner(pivot = pivot, label = y_subplot[self.context.idx][self.context.j],  axs = axs[self.context.i])
+                    if data_pivot.hasattr("st_dev")
+                        error_bar = pivot = pd.pivot_table(data_pivot, index = self.instr.x_axis[self.context.idx], values = "st_dev")
+                        self.plot_inner(pivot = pivot, label = y_subplot[self.context.idx][self.context.j],  axs = axs[self.context.i], error = error_bar)
+                    else:
+                        self.plot_inner(pivot = pivot, label = y_subplot[self.context.idx][self.context.j],  axs = axs[self.context.i])
                     #label = tmp_label+" "+y_subplot[self.context.idx][self.context.j]
                 else:
                     pivot = pd.pivot_table(data_pivot,
                                            columns = self.instr.multigraph[self.context.i][self.context.idx],
                                            index = self.instr.x_axis[self.context.idx],
                                            values = y_subplot[self.context.idx][self.context.j])
-                    self.plot_inner(pivot = pivot, label = pivot.columns,  axs = axs[self.context.i])
-    def plot_inner(self, pivot, label, axs):
+                    if data_pivot.hasattr("st_dev")
+                            error_bar = pd.pivot_table(data_pivot,
+                                           columns = self.instr.multigraph[self.context.i][self.context.idx],
+                                           index = self.instr.x_axis[self.context.idx],
+                                           values = "st_dev")
+                            self.plot_inner(pivot = pivot, label = pivot.columns,  axs = axs[self.context.i], error_bar)
+                    else:
+                        self.plot_inner(pivot = pivot, label = pivot.columns,  axs = axs[self.context.i])
+    def plot_inner(self, pivot, label, axs, error_bar = None):
         #axs.plot(pivot.index, pivot.values, marker='.', label=label)
         axs.plot(pivot.index, pivot.values, label=label)
-        if self.instr.single_legend is not None and not self.instr.single_legend.iloc[self.context.idx]:
+        if self.instr.single_legend is  None or not self.instr.single_legend.iloc[self.context.idx]:
             axs.legend(loc=1,fontsize=7) #TODO magari 0
         if self.instr.vertical_lines is not None and self.instr.vertical_lines[self.context.idx] is not None:  
             lines = self.instr.vertical_lines[self.context.idx].split(",")
