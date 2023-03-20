@@ -86,26 +86,15 @@ class Plots:
             for self.context.j in range(len(y_subplot[self.context.idx])):
                 if pd.isnull(self.instr.multigraph[self.context.i][self.context.idx]):#reshape dataframe for multiplot
                     pivot = pd.pivot_table(data_pivot, index = self.instr.x_axis[self.context.idx], values = y_subplot[self.context.idx][self.context.j])
-                    if data_pivot.hasattr("st_dev")
-                        error_bar = pivot = pd.pivot_table(data_pivot, index = self.instr.x_axis[self.context.idx], values = "st_dev")
-                        self.plot_inner(pivot = pivot, label = y_subplot[self.context.idx][self.context.j],  axs = axs[self.context.i], error = error_bar)
-                    else:
-                        self.plot_inner(pivot = pivot, label = y_subplot[self.context.idx][self.context.j],  axs = axs[self.context.i])
+                    self.plot_inner(pivot = pivot, label = y_subplot[self.context.idx][self.context.j],  axs = axs[self.context.i])
                     #label = tmp_label+" "+y_subplot[self.context.idx][self.context.j]
                 else:
                     pivot = pd.pivot_table(data_pivot,
                                            columns = self.instr.multigraph[self.context.i][self.context.idx],
                                            index = self.instr.x_axis[self.context.idx],
                                            values = y_subplot[self.context.idx][self.context.j])
-                    if data_pivot.hasattr("st_dev")
-                            error_bar = pd.pivot_table(data_pivot,
-                                           columns = self.instr.multigraph[self.context.i][self.context.idx],
-                                           index = self.instr.x_axis[self.context.idx],
-                                           values = "st_dev")
-                            self.plot_inner(pivot = pivot, label = pivot.columns,  axs = axs[self.context.i], error_bar)
-                    else:
-                        self.plot_inner(pivot = pivot, label = pivot.columns,  axs = axs[self.context.i])
-    def plot_inner(self, pivot, label, axs, error_bar = None):
+                    self.plot_inner(pivot = pivot, label = pivot.columns,  axs = axs[self.context.i])
+    def plot_inner(self, pivot, label, axs):
         #axs.plot(pivot.index, pivot.values, marker='.', label=label)
         axs.plot(pivot.index, pivot.values, label=label)
         if self.instr.single_legend is  None or not self.instr.single_legend.iloc[self.context.idx]:
